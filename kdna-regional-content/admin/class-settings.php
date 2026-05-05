@@ -91,6 +91,7 @@ class KDNA_RC_Settings {
 				'sanitize_callback' => array( $this, 'sanitise_settings' ),
 				'default'           => array(
 					'maxmind_license_key' => '',
+					'default_region'      => '',
 				),
 			)
 		);
@@ -109,6 +110,24 @@ class KDNA_RC_Settings {
 			self::PAGE_SLUG . '-general',
 			'kdna_rc_section_maxmind',
 			array( 'label_for' => 'kdna_rc_maxmind_license_key' )
+		);
+
+		// General tab: default region used when no configured region matches
+		// the visitor. Populated from the regions list saved on the Regions tab.
+		add_settings_section(
+			'kdna_rc_section_regions_general',
+			__( 'Region Behaviour', 'kdna-regional-content' ),
+			array( $this, 'render_section_regions_general' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'default_region',
+			__( 'Default Region', 'kdna-regional-content' ),
+			array( $this, 'render_field_default_region' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_regions_general',
+			array( 'label_for' => 'kdna_rc_default_region' )
 		);
 
 		// Tools tab: auto-update schedule lives inside the same option key
@@ -167,6 +186,17 @@ class KDNA_RC_Settings {
 			}
 		}
 
+		if ( array_key_exists( 'default_region', $input ) ) {
+			$value           = sanitize_key( wp_unslash( $input['default_region'] ) );
+			$regions_handler = new KDNA_RC_Regions();
+			// Only accept the empty string (no default) or a slug that maps to
+			// a real region; this prevents stale values lingering after a
+			// region is renamed or deleted.
+			if ( '' === $value || null !== $regions_handler->get( $value ) ) {
+				$clean['default_region'] = $value;
+			}
+		}
+
 		return $clean;
 	}
 
@@ -195,6 +225,58 @@ class KDNA_RC_Settings {
 		);
 
 		echo '<p class="description">' . esc_html__( 'Stored securely in the WordPress options table. Used only to authenticate database downloads with MaxMind.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the introductory copy for the Region Behaviour section.
+	 *
+	 * @return void
+	 */
+	public function render_section_regions_general() {
+		echo '<p>' . esc_html__( 'Choose which region visitors fall into when their country is not part of any configured region. Manage the regions list under the Regions tab.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Default Region dropdown.
+	 *
+	 * Falls back to a polite empty state when no regions exist so admins are
+	 * not left looking at a blank dropdown wondering what to do.
+	 *
+	 * @return void
+	 */
+	public function render_field_default_region() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['default_region'] ) ? (string) $settings['default_region'] : '';
+		$regions  = ( new KDNA_RC_Regions() )->get_all();
+
+		echo '<select id="kdna_rc_default_region" name="' . esc_attr( KDNA_RC_OPTION_SETTINGS ) . '[default_region]">';
+		echo '<option value=""' . selected( '', $current, false ) . '>' . esc_html__( 'No default (visitors with unmatched countries see no region content)', 'kdna-regional-content' ) . '</option>';
+		foreach ( $regions as $region ) {
+			printf(
+				'<option value="%1$s"%2$s>%3$s</option>',
+				esc_attr( $region['slug'] ),
+				selected( $current, $region['slug'], false ),
+				esc_html( $region['name'] )
+			);
+		}
+		echo '</select>';
+
+		if ( empty( $regions ) ) {
+			$url = add_query_arg(
+				array(
+					'page' => self::PAGE_SLUG,
+					'tab'  => 'regions',
+				),
+				admin_url( 'admin.php' )
+			);
+			echo '<p class="description">';
+			printf(
+				/* translators: %s: link to the Regions tab. */
+				esc_html__( 'No regions yet. Add one on the %s.', 'kdna-regional-content' ),
+				'<a href="' . esc_url( $url ) . '">' . esc_html__( 'Regions tab', 'kdna-regional-content' ) . '</a>'
+			);
+			echo '</p>';
+		}
 	}
 
 	/**
@@ -257,25 +339,50 @@ class KDNA_RC_Settings {
 		wp_enqueue_script(
 			'kdna-rc-admin',
 			KDNA_RC_PLUGIN_URL . 'admin/admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'jquery-ui-sortable' ),
 			KDNA_RC_VERSION,
 			true
 		);
+
+		$countries = KDNA_RC_Regions::country_list();
+		$country_payload = array();
+		foreach ( $countries as $code => $name ) {
+			$country_payload[] = array(
+				'code' => $code,
+				'name' => $name,
+			);
+		}
 
 		wp_localize_script(
 			'kdna-rc-admin',
 			'kdnaRCAdmin',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'kdna_rc_admin' ),
-				'actions' => array(
+				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
+				'nonce'     => wp_create_nonce( 'kdna_rc_admin' ),
+				'actions'   => array(
 					'updateDatabase' => KDNA_RC_Database_Updater::AJAX_ACTION,
+					'saveRegion'     => KDNA_RC_Regions::AJAX_SAVE,
+					'deleteRegion'   => KDNA_RC_Regions::AJAX_DELETE,
+					'reorderRegions' => KDNA_RC_Regions::AJAX_REORDER,
 				),
-				'i18n'    => array(
-					'updating' => __( 'Updating database, please wait...', 'kdna-regional-content' ),
-					'success'  => __( 'Database updated successfully.', 'kdna-regional-content' ),
-					'failure'  => __( 'Database update failed.', 'kdna-regional-content' ),
-					'network'  => __( 'A network error stopped the update. Try again.', 'kdna-regional-content' ),
+				'countries' => $country_payload,
+				'i18n'      => array(
+					'updating'        => __( 'Updating database, please wait...', 'kdna-regional-content' ),
+					'success'         => __( 'Database updated successfully.', 'kdna-regional-content' ),
+					'failure'         => __( 'Database update failed.', 'kdna-regional-content' ),
+					'network'         => __( 'A network error stopped the update. Try again.', 'kdna-regional-content' ),
+					'savingRegion'    => __( 'Saving...', 'kdna-regional-content' ),
+					'regionSaved'     => __( 'Region saved.', 'kdna-regional-content' ),
+					'regionDeleted'   => __( 'Region deleted.', 'kdna-regional-content' ),
+					'reorderSaved'    => __( 'Order saved.', 'kdna-regional-content' ),
+					'noResults'       => __( 'No countries match.', 'kdna-regional-content' ),
+					'newRegion'       => __( 'New region', 'kdna-regional-content' ),
+					'untitledRegion'  => __( 'Untitled region', 'kdna-regional-content' ),
+					'singleSummary'   => __( 'Single country', 'kdna-regional-content' ),
+					/* translators: %d: number of countries. */
+					'groupSummaryOne' => __( 'Group, %d country', 'kdna-regional-content' ),
+					/* translators: %d: number of countries. */
+					'groupSummaryMany' => __( 'Group, %d countries', 'kdna-regional-content' ),
 				),
 			)
 		);

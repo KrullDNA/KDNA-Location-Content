@@ -40,6 +40,13 @@ final class KDNA_RC_Plugin {
 	private $database_updater = null;
 
 	/**
+	 * Regions handler.
+	 *
+	 * @var KDNA_RC_Regions|null
+	 */
+	private $regions = null;
+
+	/**
 	 * Return the singleton instance, creating it on first call.
 	 *
 	 * @return KDNA_RC_Plugin
@@ -89,6 +96,14 @@ final class KDNA_RC_Plugin {
 		$this->database_updater = new KDNA_RC_Database_Updater();
 		$this->database_updater->init();
 
+		// Regions handler. Instantiated everywhere so future stages (variant
+		// rendering, detection) can use it on the front end too. AJAX handlers
+		// register only once, gated below to admin.
+		$this->regions = new KDNA_RC_Regions();
+		if ( is_admin() ) {
+			$this->regions->init();
+		}
+
 		// Boot the admin settings page only inside wp-admin.
 		if ( is_admin() ) {
 			$this->settings = new KDNA_RC_Settings();
@@ -130,6 +145,15 @@ final class KDNA_RC_Plugin {
 	 */
 	public function database_updater() {
 		return $this->database_updater;
+	}
+
+	/**
+	 * Convenience accessor for the regions handler.
+	 *
+	 * @return KDNA_RC_Regions|null
+	 */
+	public function regions() {
+		return $this->regions;
 	}
 
 	/**

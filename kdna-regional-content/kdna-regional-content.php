@@ -89,8 +89,14 @@ function kdna_rc_activate() {
 			array(
 				'maxmind_license_key' => '',
 				'db_update_schedule'  => 'kdna_rc_monthly',
+				'default_region'      => '',
 			)
 		);
+	}
+
+	// Seed the regions option so get_option returns an array on every call.
+	if ( false === get_option( KDNA_RC_Regions::OPTION_KEY ) ) {
+		add_option( KDNA_RC_Regions::OPTION_KEY, array() );
 	}
 
 	// Schedule the auto-update cron event. init() registers the custom
