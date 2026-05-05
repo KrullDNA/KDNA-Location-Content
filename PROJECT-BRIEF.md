@@ -377,7 +377,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | 6. Heading + Text Editor variants | Complete | KDNA_RC_Variants_Base abstract + Heading and Text Editor extensions wrap output in `kdna-rc-variant-wrapper`, DOMDocument-patched headings (text + link override), full body replacement for Text Editor, lang/dir attributes per variant, frontend.js variant swap. |
 | 7. Button + Image + Icon + Icon List | Complete | Variant repeaters on Button (text/link/icon), Image (image/alt/link), Icon (icon/link); Icon List uses per-item Show in Regions multi-select with `data-kdna-show-in` on each `<li>`. |
 | 8. WP Rocket + polish + README | Complete | WP Rocket auto-exclusion of detection endpoint, Clear All Caches AJAX, four admin notices (license, db, regions, default), comprehensive README, hardened uninstall with post meta + uploads cleanup, security audit pass. |
-| 9. Final zip | Not started | |
+| 9. Final zip | Complete | `kdna-regional-content.zip` built (41 files, ~110 KB compressed). Extracts cleanly to `wp-content/plugins/kdna-regional-content/`. Excludes `.git`, dev files, runtime `.mmdb`/archives. Includes bundled `data/countries.json` (required at runtime) and bundled MaxMind reader. |
 
 ---
 
