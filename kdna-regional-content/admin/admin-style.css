@@ -19,3 +19,72 @@
 .kdna-rc-wrap .kdna-rc-placeholder {
 	margin: 0;
 }
+
+.kdna-rc-tools h2 {
+	margin-top: 0;
+}
+
+.kdna-rc-tools .kdna-rc-status-table {
+	max-width: 640px;
+	margin-bottom: 1.5em;
+}
+
+.kdna-rc-tools .kdna-rc-status-table th {
+	width: 40%;
+}
+
+.kdna-rc-status-pill {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.kdna-rc-status-pill.is-ok {
+	background: #e3f1de;
+	color: #2c5e1e;
+}
+
+.kdna-rc-status-pill.is-warn {
+	background: #fcf3cd;
+	color: #7a5b00;
+}
+
+.kdna-rc-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 1em 0 1.25em;
+}
+
+.kdna-rc-spinner.spinner {
+	float: none;
+	margin: 0;
+	visibility: hidden;
+}
+
+.kdna-rc-spinner.spinner.is-active {
+	visibility: visible;
+}
+
+.kdna-rc-update-message {
+	font-style: italic;
+}
+
+.kdna-rc-update-message.kdna-rc-msg-ok {
+	color: #2c5e1e;
+	font-style: normal;
+}
+
+.kdna-rc-update-message.kdna-rc-msg-error {
+	color: #8a1f11;
+	font-style: normal;
+}
+
+.kdna-rc-license-warning,
+.kdna-rc-last-error {
+	max-width: 640px;
+	margin: 0 0 1em;
+}

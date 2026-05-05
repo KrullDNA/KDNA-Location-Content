@@ -370,7 +370,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | Stage | Status | Notes |
 |---|---|---|
 | 1. Scaffold + settings foundation | Complete | Activatable plugin scaffold, KDNA_RC_Plugin singleton, top-level menu with three tabs, MaxMind License Key field saving to `kdna_rc_settings` via Settings API. |
-| 2. MaxMind library + DB download | Not started | |
+| 2. MaxMind library + DB download | Complete | Bundled MaxMind reader v1.11.1 (Apache 2.0), Tools tab status panel, Update Database Now AJAX button, monthly WP-Cron schedule with weekly/never options. |
 | 3. Regions & Groups manager | Not started | |
 | 4. Visitor detection + cookie | Not started | |
 | 5. Visibility control on all widgets | Not started | |

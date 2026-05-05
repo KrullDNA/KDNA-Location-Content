@@ -88,8 +88,18 @@ function kdna_rc_activate() {
 			KDNA_RC_OPTION_SETTINGS,
 			array(
 				'maxmind_license_key' => '',
+				'db_update_schedule'  => 'kdna_rc_monthly',
 			)
 		);
+	}
+
+	// Schedule the auto-update cron event. init() registers the custom
+	// monthly schedule filter so wp_schedule_event() can resolve the slug
+	// during the activation request (plugins_loaded does not fire here).
+	if ( class_exists( 'KDNA_RC_Database_Updater' ) ) {
+		$updater = new KDNA_RC_Database_Updater();
+		$updater->init();
+		$updater->reconcile_cron_schedule();
 	}
 }
 register_activation_hook( __FILE__, 'kdna_rc_activate' );
@@ -103,7 +113,11 @@ register_activation_hook( __FILE__, 'kdna_rc_activate' );
  * @return void
  */
 function kdna_rc_deactivate() {
-	// Intentionally empty for Stage 1.
+	if ( class_exists( 'KDNA_RC_Database_Updater' ) ) {
+		KDNA_RC_Database_Updater::clear_scheduled_event();
+	} else {
+		wp_clear_scheduled_hook( 'kdna_rc_update_database' );
+	}
 }
 register_deactivation_hook( __FILE__, 'kdna_rc_deactivate' );
 

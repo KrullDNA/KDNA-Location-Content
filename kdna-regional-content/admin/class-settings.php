@@ -110,6 +110,24 @@ class KDNA_RC_Settings {
 			'kdna_rc_section_maxmind',
 			array( 'label_for' => 'kdna_rc_maxmind_license_key' )
 		);
+
+		// Tools tab: auto-update schedule lives inside the same option key
+		// but is rendered on the Tools page so the UI stays grouped sensibly.
+		add_settings_section(
+			'kdna_rc_section_db_schedule',
+			__( 'Auto-update Schedule', 'kdna-regional-content' ),
+			array( $this, 'render_section_db_schedule' ),
+			self::PAGE_SLUG . '-tools'
+		);
+
+		add_settings_field(
+			'db_update_schedule',
+			__( 'Auto-update Frequency', 'kdna-regional-content' ),
+			array( $this, 'render_field_db_schedule' ),
+			self::PAGE_SLUG . '-tools',
+			'kdna_rc_section_db_schedule',
+			array( 'label_for' => 'kdna_rc_db_update_schedule' )
+		);
 	}
 
 	/**
@@ -139,6 +157,14 @@ class KDNA_RC_Settings {
 			// License keys are short alphanumeric tokens; trim and strip tags
 			// is sufficient and keeps any future formatting MaxMind chooses.
 			$clean['maxmind_license_key'] = sanitize_text_field( wp_unslash( $input['maxmind_license_key'] ) );
+		}
+
+		if ( array_key_exists( 'db_update_schedule', $input ) ) {
+			$value   = sanitize_key( wp_unslash( $input['db_update_schedule'] ) );
+			$updater = new KDNA_RC_Database_Updater();
+			if ( in_array( $value, $updater->valid_schedules(), true ) ) {
+				$clean['db_update_schedule'] = $value;
+			}
 		}
 
 		return $clean;
@@ -172,7 +198,46 @@ class KDNA_RC_Settings {
 	}
 
 	/**
-	 * Enqueue the admin stylesheet on this plugin's settings page only.
+	 * Render the introductory copy for the auto-update schedule section.
+	 *
+	 * @return void
+	 */
+	public function render_section_db_schedule() {
+		echo '<p>' . esc_html__( 'Choose how often WordPress should check MaxMind for a fresh GeoLite2 database. The official release cadence is monthly, so weekly is rarely useful.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the auto-update schedule dropdown.
+	 *
+	 * @return void
+	 */
+	public function render_field_db_schedule() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['db_update_schedule'] ) ? (string) $settings['db_update_schedule'] : KDNA_RC_Database_Updater::SCHEDULE_MONTHLY;
+
+		$choices = array(
+			'weekly'                                => __( 'Weekly', 'kdna-regional-content' ),
+			KDNA_RC_Database_Updater::SCHEDULE_MONTHLY => __( 'Monthly (recommended)', 'kdna-regional-content' ),
+			'never'                                 => __( 'Never (manual updates only)', 'kdna-regional-content' ),
+		);
+
+		echo '<select id="kdna_rc_db_update_schedule" name="' . esc_attr( KDNA_RC_OPTION_SETTINGS ) . '[db_update_schedule]">';
+		foreach ( $choices as $value => $label ) {
+			printf(
+				'<option value="%1$s"%2$s>%3$s</option>',
+				esc_attr( $value ),
+				selected( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+	}
+
+	/**
+	 * Enqueue the admin stylesheet and script on this plugin's settings page only.
+	 *
+	 * Localises the AJAX action names, nonce, and labels the JS needs so no
+	 * configuration leaks to other admin screens.
 	 *
 	 * @param string $hook_suffix The current admin page hook.
 	 * @return void
@@ -187,6 +252,32 @@ class KDNA_RC_Settings {
 			KDNA_RC_PLUGIN_URL . 'admin/admin-style.css',
 			array(),
 			KDNA_RC_VERSION
+		);
+
+		wp_enqueue_script(
+			'kdna-rc-admin',
+			KDNA_RC_PLUGIN_URL . 'admin/admin.js',
+			array( 'jquery' ),
+			KDNA_RC_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'kdna-rc-admin',
+			'kdnaRCAdmin',
+			array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'kdna_rc_admin' ),
+				'actions' => array(
+					'updateDatabase' => KDNA_RC_Database_Updater::AJAX_ACTION,
+				),
+				'i18n'    => array(
+					'updating' => __( 'Updating database, please wait...', 'kdna-regional-content' ),
+					'success'  => __( 'Database updated successfully.', 'kdna-regional-content' ),
+					'failure'  => __( 'Database update failed.', 'kdna-regional-content' ),
+					'network'  => __( 'A network error stopped the update. Try again.', 'kdna-regional-content' ),
+				),
+			)
 		);
 	}
 
