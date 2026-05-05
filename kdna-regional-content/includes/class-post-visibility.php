@@ -65,6 +65,39 @@ class KDNA_RC_Post_Visibility {
 			add_action( 'add_meta_boxes', array( $this, 'register_meta_box' ) );
 			add_action( 'save_post', array( $this, 'save_meta' ), 10, 2 );
 		}
+
+		// Tag every restricted post with kdna-rc-post-{ID} via post_class()
+		// so the front-end JS has a reliable selector regardless of which
+		// listing widget is rendering the loop. Runs on the front end only;
+		// admin list tables use a separate get_post_class() codepath that
+		// does not need our marker.
+		if ( ! is_admin() ) {
+			add_filter( 'post_class', array( $this, 'add_post_class' ), 10, 3 );
+		}
+	}
+
+	/**
+	 * Add a kdna-rc-post-{ID} class to restricted posts.
+	 *
+	 * Returns the array unchanged for posts with no _kdna_rc_regions meta so
+	 * we do not pollute every post's class list.
+	 *
+	 * @param array $classes Existing classes.
+	 * @param array $class   Extra classes passed to post_class() (unused).
+	 * @param int   $post_id Post ID.
+	 * @return array
+	 */
+	public function add_post_class( $classes, $class, $post_id ) {
+		unset( $class );
+		$post_id = (int) $post_id;
+		if ( $post_id <= 0 ) {
+			return $classes;
+		}
+		$regions = self::get_post_regions( $post_id );
+		if ( ! empty( $regions ) ) {
+			$classes[] = 'kdna-rc-post-' . $post_id;
+		}
+		return $classes;
 	}
 
 	/**
@@ -111,22 +144,12 @@ class KDNA_RC_Post_Visibility {
 	 *
 	 * Returns every post that has a non-empty _kdna_rc_regions meta entry.
 	 * Used by the front-end script to apply data-kdna-show-in to listing
-	 * items at runtime, which works with any listing widget (JetEngine,
-	 * Elementor Loop, query builder) that uses post_class() so each item
-	 * carries a post-{id} class.
-	 *
-	 * Cached for an hour in a transient. The cache is busted from save_meta()
-	 * so an editor's change is reflected on the next page view.
+	 * items at runtime. Single SELECT against an indexed meta_key, so this
+	 * runs cheaply on every front-end page load with no caching needed.
 	 *
 	 * @return array<int,array<int,string>>
 	 */
 	public static function get_restricted_posts_map() {
-		$cache_key = 'kdna_rc_restricted_posts_map';
-		$cached    = get_transient( $cache_key );
-		if ( is_array( $cached ) ) {
-			return $cached;
-		}
-
 		global $wpdb;
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
@@ -148,17 +171,7 @@ class KDNA_RC_Post_Visibility {
 			$map[ (int) $row->post_id ] = $slugs;
 		}
 
-		set_transient( $cache_key, $map, HOUR_IN_SECONDS );
 		return $map;
-	}
-
-	/**
-	 * Invalidate the restricted-posts map cache.
-	 *
-	 * @return void
-	 */
-	public static function bust_cache() {
-		delete_transient( 'kdna_rc_restricted_posts_map' );
 	}
 
 	/**
@@ -270,7 +283,5 @@ class KDNA_RC_Post_Visibility {
 		} else {
 			update_post_meta( $post_id, self::META_KEY, $valid );
 		}
-
-		self::bust_cache();
 	}
 }
