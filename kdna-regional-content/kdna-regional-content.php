@@ -25,16 +25,34 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Core plugin constants.
  *
  * Centralised here so every class and view references the same values.
+ * Each define() is guarded with `defined()` because at least one other
+ * plugin in the KDNA family (kdna-reveal-card) declares constants under
+ * the same KDNA_RC_ prefix, and we do not want either plugin's load order
+ * to produce a "Constant already defined" warning.
  */
-define( 'KDNA_RC_VERSION', '0.1.0' );
-define( 'KDNA_RC_PLUGIN_FILE', __FILE__ );
-define( 'KDNA_RC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'KDNA_RC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'KDNA_RC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-define( 'KDNA_RC_TEXT_DOMAIN', 'kdna-regional-content' );
+if ( ! defined( 'KDNA_RC_VERSION' ) ) {
+	define( 'KDNA_RC_VERSION', '0.1.0' );
+}
+if ( ! defined( 'KDNA_RC_PLUGIN_FILE' ) ) {
+	define( 'KDNA_RC_PLUGIN_FILE', __FILE__ );
+}
+if ( ! defined( 'KDNA_RC_PLUGIN_DIR' ) ) {
+	define( 'KDNA_RC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+}
+if ( ! defined( 'KDNA_RC_PLUGIN_URL' ) ) {
+	define( 'KDNA_RC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+}
+if ( ! defined( 'KDNA_RC_PLUGIN_BASENAME' ) ) {
+	define( 'KDNA_RC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+}
+if ( ! defined( 'KDNA_RC_TEXT_DOMAIN' ) ) {
+	define( 'KDNA_RC_TEXT_DOMAIN', 'kdna-regional-content' );
+}
 
 // Single option key holding all general settings (per Stage 1 brief).
-define( 'KDNA_RC_OPTION_SETTINGS', 'kdna_rc_settings' );
+if ( ! defined( 'KDNA_RC_OPTION_SETTINGS' ) ) {
+	define( 'KDNA_RC_OPTION_SETTINGS', 'kdna_rc_settings' );
+}
 
 /**
  * Auto-load KDNA_RC_* classes from the includes/ and admin/ folders.

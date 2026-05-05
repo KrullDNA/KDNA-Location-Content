@@ -86,11 +86,13 @@ class KDNA_RC_Language_Selector_Widget extends \Elementor\Widget_Base {
 	 * Per the Elementor Atomic conventions documented in the brief: when
 	 * e_optimized_markup is active the rendered widget should not include
 	 * .elementor-widget-container. Returning false here lets our render()
-	 * output the dropdown root directly inside .elementor-widget.
+	 * output the dropdown root directly inside .elementor-widget. The
+	 * `: bool` return type matches Elementor's Element_Base parent
+	 * signature so PHP does not raise an LSP-violation fatal.
 	 *
 	 * @return bool
 	 */
-	public function has_widget_inner_wrapper() {
+	public function has_widget_inner_wrapper(): bool {
 		if ( method_exists( '\\Elementor\\Plugin', 'instance' ) ) {
 			$features = \Elementor\Plugin::instance()->experiments;
 			if ( $features && method_exists( $features, 'is_feature_active' ) && $features->is_feature_active( 'e_optimized_markup' ) ) {
