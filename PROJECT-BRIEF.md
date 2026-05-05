@@ -369,15 +369,15 @@ Update this table between Claude Code sessions to maintain continuity.
 
 | Stage | Status | Notes |
 |---|---|---|
-| 1. Scaffold + settings foundation | Not started | |
-| 2. MaxMind library + DB download | Not started | |
-| 3. Regions & Groups manager | Not started | |
-| 4. Visitor detection + cookie | Not started | |
-| 5. Visibility control on all widgets | Not started | |
-| 6. Heading + Text Editor variants | Not started | |
-| 7. Button + Image + Icon + Icon List | Not started | |
-| 8. WP Rocket + polish + README | Not started | |
-| 9. Final zip | Not started | |
+| 1. Scaffold + settings foundation | Complete | Activatable plugin scaffold, KDNA_RC_Plugin singleton, top-level menu with three tabs, MaxMind License Key field saving to `kdna_rc_settings` via Settings API. |
+| 2. MaxMind library + DB download | Complete | Bundled MaxMind reader v1.11.1 (Apache 2.0), Tools tab status panel, Update Database Now AJAX button, monthly WP-Cron schedule with weekly/never options. |
+| 3. Regions & Groups manager | Complete | KDNA_RC_Regions CRUD on `kdna_rc_regions`, full Regions tab UI (drag-reorder, inline editor, country search picker), bundled 249-country JSON, Default Region dropdown wired into General tab. |
+| 4. Visitor detection + cookie | Complete | KDNA_RC_Detector with priority-ordered IP detection, `kdna_region` cookie, public AJAX endpoint (`kdna_rc_detect_region`), `?region=` override modes, inline `window.kdnaRC` config in head, Tools tab Test Detection, General tab override mode + proxy + cookie lifetime fields, README with WP Rocket exclusion notes. |
+| 5. Visibility control on all widgets | Complete | Element + post visibility with JetEngine support: Elementor controls + render attribute, post-type meta box with `_kdna_rc_regions`, JetEngine listing-item attribute injection, single-post meta tag with redirect mode, anti-flicker inline style + script and frontend.js. |
+| 6. Heading + Text Editor variants | Complete | KDNA_RC_Variants_Base abstract + Heading and Text Editor extensions wrap output in `kdna-rc-variant-wrapper`, DOMDocument-patched headings (text + link override), full body replacement for Text Editor, lang/dir attributes per variant, frontend.js variant swap. |
+| 7. Button + Image + Icon + Icon List | Complete | Variant repeaters on Button (text/link/icon), Image (image/alt/link), Icon (icon/link); Icon List uses per-item Show in Regions multi-select with `data-kdna-show-in` on each `<li>`. |
+| 8. WP Rocket + polish + README | Complete | WP Rocket auto-exclusion of detection endpoint, Clear All Caches AJAX, four admin notices (license, db, regions, default), comprehensive README, hardened uninstall with post meta + uploads cleanup, security audit pass. |
+| 9. Final zip | Complete | `kdna-regional-content.zip` built (41 files, ~110 KB compressed). Extracts cleanly to `wp-content/plugins/kdna-regional-content/`. Excludes `.git`, dev files, runtime `.mmdb`/archives. Includes bundled `data/countries.json` (required at runtime) and bundled MaxMind reader. |
 
 ---
 
