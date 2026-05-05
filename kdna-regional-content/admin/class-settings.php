@@ -193,6 +193,25 @@ class KDNA_RC_Settings {
 			'kdna_rc_section_post_visibility'
 		);
 
+		// Data retention controls. The default keeps everything on uninstall
+		// so an accidental Delete from the Plugins screen does not wipe a
+		// site's region configuration.
+		add_settings_section(
+			'kdna_rc_section_data_retention',
+			__( 'Data Retention', 'kdna-regional-content' ),
+			array( $this, 'render_section_data_retention' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'delete_on_uninstall',
+			__( 'Delete data on uninstall', 'kdna-regional-content' ),
+			array( $this, 'render_field_delete_on_uninstall' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_data_retention',
+			array( 'label_for' => 'kdna_rc_delete_on_uninstall' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -313,6 +332,12 @@ class KDNA_RC_Settings {
 		if ( array_key_exists( 'single_post_redirect_url', $input ) ) {
 			$url = esc_url_raw( wp_unslash( $input['single_post_redirect_url'] ) );
 			$clean['single_post_redirect_url'] = $url;
+		}
+
+		// Data retention toggle. Hidden presence flag so an unticked
+		// checkbox saves cleanly as false instead of being ignored.
+		if ( array_key_exists( 'delete_on_uninstall_present', $input ) ) {
+			$clean['delete_on_uninstall'] = ! empty( $input['delete_on_uninstall'] );
 		}
 
 		return $clean;
@@ -556,6 +581,37 @@ class KDNA_RC_Settings {
 		);
 		echo '</fieldset>';
 		echo '<p class="description">' . esc_html__( 'The redirect runs client-side from a meta tag, so it works on cached pages. Visitors not in any allowed region are sent to the URL above.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the introductory copy for the data retention section.
+	 *
+	 * @return void
+	 */
+	public function render_section_data_retention() {
+		echo '<p>' . esc_html__( 'Choose what happens to your settings, regions, and downloaded database when the plugin is uninstalled. The default keeps everything in place so reinstalling the plugin restores your configuration.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Delete on uninstall checkbox.
+	 *
+	 * @return void
+	 */
+	public function render_field_delete_on_uninstall() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['delete_on_uninstall'] );
+
+		printf(
+			'<input type="hidden" name="%1$s[delete_on_uninstall_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_delete_on_uninstall" name="%1$s[delete_on_uninstall]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Remove all plugin settings, regions, post visibility meta, and the downloaded GeoLite2 database when the plugin is uninstalled', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Off by default. Tick this only if you intend to remove the plugin permanently and want a clean wipe. Deactivation never deletes data; only an explicit Delete from the Plugins screen runs the uninstaller.', 'kdna-regional-content' ) . '</p>';
 	}
 
 	/**
