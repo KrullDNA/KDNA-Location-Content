@@ -45,6 +45,46 @@
 			.filter( Boolean );
 	}
 
+	// Hydrate data-kdna-show-in on listing items from the post-regions map
+	// printed by KDNA_RC_Assets::print_restricted_posts_map(). Matches the
+	// "post-{id}" class that WordPress's post_class() adds, so this works
+	// for every listing widget (JetEngine, Elementor Loop, query-builder,
+	// custom themes) without depending on any plugin's internal hooks.
+	//
+	// When a post-{id} element is found inside a known grid wrapper
+	// (.jet-listing-grid__item, .e-loop-item, .elementor-post), the
+	// attribute is moved up to that wrapper so hiding it collapses the
+	// grid cell cleanly. Otherwise the attribute is set on the post
+	// element itself.
+	function hydratePostVisibility() {
+		var map = window.kdnaRCPostRegions || {};
+		var keys = Object.keys( map );
+		if ( keys.length === 0 ) {
+			return;
+		}
+
+		var WRAPPER_SELECTOR = '.jet-listing-grid__item, .e-loop-item, .elementor-post, .jet-listing-dynamic-post';
+
+		for ( var i = 0; i < keys.length; i++ ) {
+			var postId = keys[ i ];
+			var slugs  = map[ postId ];
+			if ( ! slugs || ! slugs.length ) {
+				continue;
+			}
+			var value  = slugs.join( ',' );
+			var nodes  = document.querySelectorAll( '.post-' + postId );
+
+			for ( var j = 0; j < nodes.length; j++ ) {
+				var post = nodes[ j ];
+				if ( post.hasAttribute( ATTR ) ) {
+					continue; // Server-side path already tagged it.
+				}
+				var target = post.closest ? post.closest( WRAPPER_SELECTOR ) : null;
+				( target || post ).setAttribute( ATTR, value );
+			}
+		}
+	}
+
 	// Walk every element marked with data-kdna-show-in and hide those whose
 	// allowed list does not include the visitor's region. We use display:none
 	// so the surrounding layout reflows naturally (CSS Grid handles this
@@ -147,6 +187,7 @@
 
 	// Run the full pipeline once the visitor's region is known.
 	function applyForRegion( region ) {
+		hydratePostVisibility();
 		applyVisibilityFilter( region );
 		applyVariantSwap( region );
 		applySinglePostPolicy( region );
