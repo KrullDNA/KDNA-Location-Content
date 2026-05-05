@@ -369,7 +369,7 @@ Update this table between Claude Code sessions to maintain continuity.
 
 | Stage | Status | Notes |
 |---|---|---|
-| 1. Scaffold + settings foundation | Not started | |
+| 1. Scaffold + settings foundation | Complete | Activatable plugin scaffold, KDNA_RC_Plugin singleton, top-level menu with three tabs, MaxMind License Key field saving to `kdna_rc_settings` via Settings API. |
 | 2. MaxMind library + DB download | Not started | |
 | 3. Regions & Groups manager | Not started | |
 | 4. Visitor detection + cookie | Not started | |

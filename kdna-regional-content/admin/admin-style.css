@@ -1,0 +1,21 @@
+/*
+ * KDNA Regional Content admin styles.
+ *
+ * Minimal in Stage 1. Adds breathing room around the tab content and a soft
+ * frame for inline placeholder notices so empty tabs do not feel broken.
+ */
+
+.kdna-rc-wrap .kdna-rc-tabs {
+	margin-bottom: 1.25em;
+}
+
+.kdna-rc-wrap .kdna-rc-tab-content {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-top: 0;
+	padding: 1.25em 1.5em;
+}
+
+.kdna-rc-wrap .kdna-rc-placeholder {
+	margin: 0;
+}
