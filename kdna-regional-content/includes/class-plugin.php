@@ -82,9 +82,13 @@ final class KDNA_RC_Plugin {
 	private $assets = null;
 
 	/**
-	 * Active widget variant extensions (Stage 6+).
+	 * Active widget variant and per-item visibility extensions (Stage 6+).
 	 *
-	 * @var array<int,KDNA_RC_Variants_Base>
+	 * Each entry implements an init() method but they do not all share a
+	 * common base class because Icon List uses a per-item visibility model
+	 * rather than the variant-wrapper pattern.
+	 *
+	 * @var array<int,object>
 	 */
 	private $variant_extensions = array();
 
@@ -173,6 +177,10 @@ final class KDNA_RC_Plugin {
 		$this->variant_extensions = array(
 			new KDNA_RC_Heading_Extension(),
 			new KDNA_RC_Text_Editor_Extension(),
+			new KDNA_RC_Button_Extension(),
+			new KDNA_RC_Image_Extension(),
+			new KDNA_RC_Icon_Extension(),
+			new KDNA_RC_Icon_List_Extension(),
 		);
 		foreach ( $this->variant_extensions as $extension ) {
 			$extension->init();

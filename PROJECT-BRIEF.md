@@ -375,7 +375,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | 4. Visitor detection + cookie | Complete | KDNA_RC_Detector with priority-ordered IP detection, `kdna_region` cookie, public AJAX endpoint (`kdna_rc_detect_region`), `?region=` override modes, inline `window.kdnaRC` config in head, Tools tab Test Detection, General tab override mode + proxy + cookie lifetime fields, README with WP Rocket exclusion notes. |
 | 5. Visibility control on all widgets | Complete | Element + post visibility with JetEngine support: Elementor controls + render attribute, post-type meta box with `_kdna_rc_regions`, JetEngine listing-item attribute injection, single-post meta tag with redirect mode, anti-flicker inline style + script and frontend.js. |
 | 6. Heading + Text Editor variants | Complete | KDNA_RC_Variants_Base abstract + Heading and Text Editor extensions wrap output in `kdna-rc-variant-wrapper`, DOMDocument-patched headings (text + link override), full body replacement for Text Editor, lang/dir attributes per variant, frontend.js variant swap. |
-| 7. Button + Image + Icon + Icon List | Not started | |
+| 7. Button + Image + Icon + Icon List | Complete | Variant repeaters on Button (text/link/icon), Image (image/alt/link), Icon (icon/link); Icon List uses per-item Show in Regions multi-select with `data-kdna-show-in` on each `<li>`. |
 | 8. WP Rocket + polish + README | Not started | |
 | 9. Final zip | Not started | |
 
