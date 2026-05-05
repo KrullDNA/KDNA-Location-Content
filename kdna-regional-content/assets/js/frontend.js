@@ -123,6 +123,7 @@
 				}
 				elem.setAttribute( ATTR, value );
 				tagged++;
+				debug( 'tag post ' + postId + ' on ' + describeNode( elem ) + ' (matched ' + describeNode( node ) + ')', elem );
 			}
 		}
 
@@ -137,6 +138,12 @@
 	// brief). The element stays in the DOM so a subsequent region change
 	// could in theory bring it back, but Stage 5 does not change the region
 	// after first resolution.
+	function describeNode( node ) {
+		var tag = node.tagName ? node.tagName.toLowerCase() : '?';
+		var cls = node.className && node.className.toString ? node.className.toString().split( /\s+/ ).slice( 0, 4 ).join( '.' ) : '';
+		return tag + ( cls ? '.' + cls : '' );
+	}
+
 	function applyVisibilityFilter( region ) {
 		var nodes = document.querySelectorAll( '[' + ATTR + ']' );
 		var hidden = 0;
@@ -148,12 +155,14 @@
 				node.style.display = 'none';
 				node.setAttribute( 'data-kdna-rc-hidden', '1' );
 				hidden++;
+				debug( 'hide: ' + describeNode( node ) + ' allowed=[' + allowed.join( ',' ) + ']', node );
 			} else {
 				if ( node.getAttribute( 'data-kdna-rc-hidden' ) === '1' ) {
 					node.style.display = '';
 					node.removeAttribute( 'data-kdna-rc-hidden' );
 				}
 				shown++;
+				debug( 'show: ' + describeNode( node ) + ' allowed=[' + allowed.join( ',' ) + ']', node );
 			}
 		}
 		debug( 'visibility filter: region="' + ( region || '(none)' ) + '" matched=' + nodes.length + ' hidden=' + hidden + ' shown=' + shown + '.' );
