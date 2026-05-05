@@ -138,6 +138,21 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'Test Detection', 'kdna-regional-content' ); ?></h2>
+	<p><?php echo esc_html__( 'Enter an IP address to see which country and region the plugin would resolve for that visitor. Useful for debugging GeoIP and region configuration.', 'kdna-regional-content' ); ?></p>
+
+	<div class="kdna-rc-test-detection">
+		<p>
+			<label for="kdna-rc-test-ip" class="screen-reader-text"><?php echo esc_html__( 'IP address', 'kdna-regional-content' ); ?></label>
+			<input type="text" id="kdna-rc-test-ip" class="regular-text code" placeholder="<?php echo esc_attr__( 'e.g. 8.8.8.8 or 2001:4860:4860::8888', 'kdna-regional-content' ); ?>" />
+			<button type="button" class="button" id="kdna-rc-test-detect"><?php echo esc_html__( 'Test', 'kdna-regional-content' ); ?></button>
+			<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		</p>
+		<div class="kdna-rc-test-result" aria-live="polite"></div>
+	</div>
+
+	<hr />
+
 	<form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>">
 		<?php
 		settings_fields( 'kdna_rc_settings_group' );

@@ -443,8 +443,117 @@
 		} );
 	}
 
+	// =====================================================================
+	// Tools tab : Test Detection
+	// =====================================================================
+
+	function bindTestDetection() {
+		var $input   = $( '#kdna-rc-test-ip' );
+		var $button  = $( '#kdna-rc-test-detect' );
+		var $result  = $( '.kdna-rc-test-result' );
+		if ( ! $input.length || ! $button.length ) {
+			return;
+		}
+		var $spinner = $button.parent().find( '.kdna-rc-spinner' );
+
+		function escapeHtml( str ) {
+			return String( str )
+				.replace( /&/g, '&amp;' )
+				.replace( /</g, '&lt;' )
+				.replace( />/g, '&gt;' )
+				.replace( /"/g, '&quot;' )
+				.replace( /'/g, '&#039;' );
+		}
+
+		function renderResult( data ) {
+			if ( ! data ) {
+				$result.empty();
+				return;
+			}
+
+			var country = data.country_code
+				? escapeHtml( data.country_name || data.country_code ) + ' (' + escapeHtml( data.country_code ) + ')'
+				: '<em>' + escapeHtml( config.i18n.testNoCountry ) + '</em>';
+
+			var region;
+			if ( data.region ) {
+				region = escapeHtml( data.region.name ) + ' (<code>' + escapeHtml( data.region.slug ) + '</code>)';
+				if ( data.used_default ) {
+					region += ' &nbsp;<em>' + escapeHtml( '(default region)' ) + '</em>';
+				}
+			} else {
+				region = '<em>' + escapeHtml( config.i18n.testNoMatch ) + '</em>';
+			}
+
+			$result.html(
+				'<table class="widefat striped" style="max-width:540px;">' +
+					'<tbody>' +
+						'<tr><th>IP</th><td><code>' + escapeHtml( data.ip ) + '</code></td></tr>' +
+						'<tr><th>Country</th><td>' + country + '</td></tr>' +
+						'<tr><th>Region</th><td>' + region + '</td></tr>' +
+					'</tbody>' +
+				'</table>'
+			);
+		}
+
+		function runTest() {
+			var ip = ( $input.val() || '' ).trim();
+			if ( ! ip ) {
+				$input.trigger( 'focus' );
+				return;
+			}
+
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>' + escapeHtml( config.i18n.testDetecting ) + '</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.testDetection,
+					nonce: config.nonce,
+					ip: ip
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						renderResult( response.data );
+					} else {
+						var msg = ( response && response.data && response.data.message ) || config.i18n.failure;
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( msg ) + '</p>' );
+					}
+				} )
+				.fail( function ( jqXHR ) {
+					var msg = config.i18n.network;
+					if ( jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message ) {
+						msg = jqXHR.responseJSON.data.message;
+					}
+					$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( msg ) + '</p>' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		}
+
+		$button.on( 'click', function ( event ) {
+			event.preventDefault();
+			runTest();
+		} );
+
+		$input.on( 'keydown', function ( event ) {
+			if ( event.key === 'Enter' ) {
+				event.preventDefault();
+				runTest();
+			}
+		} );
+	}
+
 	$( function () {
 		bindUpdateDatabaseButton();
 		bindRegionsTab();
+		bindTestDetection();
 	} );
 } )( jQuery );

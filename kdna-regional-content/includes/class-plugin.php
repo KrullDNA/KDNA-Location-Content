@@ -47,6 +47,13 @@ final class KDNA_RC_Plugin {
 	private $regions = null;
 
 	/**
+	 * Visitor detection handler.
+	 *
+	 * @var KDNA_RC_Detector|null
+	 */
+	private $detector = null;
+
+	/**
 	 * Return the singleton instance, creating it on first call.
 	 *
 	 * @return KDNA_RC_Plugin
@@ -104,6 +111,12 @@ final class KDNA_RC_Plugin {
 			$this->regions->init();
 		}
 
+		// Visitor detection. init() registers public AJAX (priv + nopriv),
+		// the early ?region= override handler, and the wp_head inline
+		// configuration printer. Safe to run in every context.
+		$this->detector = new KDNA_RC_Detector();
+		$this->detector->init();
+
 		// Boot the admin settings page only inside wp-admin.
 		if ( is_admin() ) {
 			$this->settings = new KDNA_RC_Settings();
@@ -154,6 +167,15 @@ final class KDNA_RC_Plugin {
 	 */
 	public function regions() {
 		return $this->regions;
+	}
+
+	/**
+	 * Convenience accessor for the visitor detection handler.
+	 *
+	 * @return KDNA_RC_Detector|null
+	 */
+	public function detector() {
+		return $this->detector;
 	}
 
 	/**

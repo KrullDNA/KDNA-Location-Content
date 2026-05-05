@@ -130,6 +130,40 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_default_region' )
 		);
 
+		// General tab: detection behaviour controls.
+		add_settings_section(
+			'kdna_rc_section_detection',
+			__( 'Detection Behaviour', 'kdna-regional-content' ),
+			array( $this, 'render_section_detection' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'test_override_mode',
+			__( 'Test Override Mode', 'kdna-regional-content' ),
+			array( $this, 'render_field_override_mode' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_detection'
+		);
+
+		add_settings_field(
+			'trust_proxy_headers',
+			__( 'Trust Proxy Headers', 'kdna-regional-content' ),
+			array( $this, 'render_field_trust_proxy' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_detection',
+			array( 'label_for' => 'kdna_rc_trust_proxy_headers' )
+		);
+
+		add_settings_field(
+			'cookie_lifetime_days',
+			__( 'Cookie Lifetime', 'kdna-regional-content' ),
+			array( $this, 'render_field_cookie_lifetime' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_detection',
+			array( 'label_for' => 'kdna_rc_cookie_lifetime' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -195,6 +229,32 @@ class KDNA_RC_Settings {
 			if ( '' === $value || null !== $regions_handler->get( $value ) ) {
 				$clean['default_region'] = $value;
 			}
+		}
+
+		if ( array_key_exists( 'test_override_mode', $input ) ) {
+			$value = sanitize_key( wp_unslash( $input['test_override_mode'] ) );
+			if ( in_array( $value, KDNA_RC_Detector::OVERRIDE_MODES, true ) ) {
+				$clean['test_override_mode'] = $value;
+			}
+		}
+
+		// Checkboxes are absent from POST when unchecked, so we cannot test
+		// for the key alone. The submitted form always includes a hidden
+		// kdna_rc_settings[trust_proxy_present] flag so we know the General
+		// tab was the source.
+		if ( array_key_exists( 'trust_proxy_present', $input ) ) {
+			$clean['trust_proxy_headers'] = ! empty( $input['trust_proxy_headers'] );
+		}
+
+		if ( array_key_exists( 'cookie_lifetime_days', $input ) ) {
+			$days = (int) $input['cookie_lifetime_days'];
+			if ( $days < 1 ) {
+				$days = 1;
+			}
+			if ( $days > 365 ) {
+				$days = 365;
+			}
+			$clean['cookie_lifetime_days'] = $days;
 		}
 
 		return $clean;
@@ -277,6 +337,83 @@ class KDNA_RC_Settings {
 			);
 			echo '</p>';
 		}
+	}
+
+	/**
+	 * Render the introductory copy for the Detection Behaviour section.
+	 *
+	 * @return void
+	 */
+	public function render_section_detection() {
+		echo '<p>' . esc_html__( 'Controls how the plugin identifies the visitor and how long their region choice persists between visits.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Test Override Mode radio group.
+	 *
+	 * @return void
+	 */
+	public function render_field_override_mode() {
+		$current = (string) ( get_option( KDNA_RC_OPTION_SETTINGS, array() )['test_override_mode'] ?? 'admins' );
+		$choices = array(
+			'admins'   => __( 'Admins only (recommended for production)', 'kdna-regional-content' ),
+			'all'      => __( 'All visitors (useful on staging)', 'kdna-regional-content' ),
+			'disabled' => __( 'Disabled (the ?region= URL parameter is ignored)', 'kdna-regional-content' ),
+		);
+
+		echo '<fieldset>';
+		foreach ( $choices as $value => $label ) {
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[test_override_mode]" value="%2$s"%3$s /> %4$s</label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $value ),
+				checked( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Add ?region=slug to any URL to force a specific region for testing. The chosen region is stored in the visitor cookie for subsequent pages.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Trust Proxy Headers checkbox.
+	 *
+	 * @return void
+	 */
+	public function render_field_trust_proxy() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		// Default to true because the typical KDNA hosting stack lives behind Cloudflare.
+		$current  = array_key_exists( 'trust_proxy_headers', (array) $settings ) ? (bool) $settings['trust_proxy_headers'] : true;
+
+		printf(
+			'<input type="hidden" name="%1$s[trust_proxy_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_trust_proxy_headers" name="%1$s[trust_proxy_headers]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Read the visitor IP from CF-Connecting-IP, X-Forwarded-For, and X-Real-IP headers', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Enable when the site is behind Cloudflare or another reverse proxy. Disable when the server is reachable directly so attackers cannot spoof their country with a forged header.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Cookie Lifetime number input.
+	 *
+	 * @return void
+	 */
+	public function render_field_cookie_lifetime() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['cookie_lifetime_days'] ) ? (int) $settings['cookie_lifetime_days'] : KDNA_RC_Detector::DEFAULT_COOKIE_DAYS;
+
+		printf(
+			'<input type="number" id="kdna_rc_cookie_lifetime" name="%1$s[cookie_lifetime_days]" value="%2$d" min="1" max="365" step="1" class="small-text" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			(int) $current
+		);
+		echo ' <span>' . esc_html__( 'days', 'kdna-regional-content' ) . '</span>';
+		echo '<p class="description">' . esc_html__( 'How long the kdna_region cookie persists in the visitor browser. Between 1 and 365 days. Default 30.', 'kdna-regional-content' ) . '</p>';
 	}
 
 	/**
@@ -364,6 +501,7 @@ class KDNA_RC_Settings {
 					'saveRegion'     => KDNA_RC_Regions::AJAX_SAVE,
 					'deleteRegion'   => KDNA_RC_Regions::AJAX_DELETE,
 					'reorderRegions' => KDNA_RC_Regions::AJAX_REORDER,
+					'testDetection'  => KDNA_RC_Detector::AJAX_TEST_ACTION,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
@@ -383,6 +521,9 @@ class KDNA_RC_Settings {
 					'groupSummaryOne' => __( 'Group, %d country', 'kdna-regional-content' ),
 					/* translators: %d: number of countries. */
 					'groupSummaryMany' => __( 'Group, %d countries', 'kdna-regional-content' ),
+					'testDetecting'   => __( 'Looking up...', 'kdna-regional-content' ),
+					'testNoMatch'     => __( 'No region matches this country.', 'kdna-regional-content' ),
+					'testNoCountry'   => __( 'GeoIP could not resolve this IP. Make sure the database is up to date.', 'kdna-regional-content' ),
 				),
 			)
 		);
