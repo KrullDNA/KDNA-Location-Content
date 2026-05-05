@@ -30,6 +30,7 @@ global $wpdb;
 $options = array(
 	'kdna_rc_settings',
 	'kdna_rc_regions',
+	'kdna_rc_languages',
 	'kdna_rc_db_status',
 );
 foreach ( $options as $option_name ) {

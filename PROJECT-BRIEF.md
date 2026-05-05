@@ -378,6 +378,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | 7. Button + Image + Icon + Icon List | Complete | Variant repeaters on Button (text/link/icon), Image (image/alt/link), Icon (icon/link); Icon List uses per-item Show in Regions multi-select with `data-kdna-show-in` on each `<li>`. |
 | 8. WP Rocket + polish + README | Complete | WP Rocket auto-exclusion of detection endpoint, Clear All Caches AJAX, four admin notices (license, db, regions, default), comprehensive README, hardened uninstall with post meta + uploads cleanup, security audit pass. |
 | 9. Final zip | Complete | `kdna-regional-content.zip` built (41 files, ~110 KB compressed). Extracts cleanly to `wp-content/plugins/kdna-regional-content/`. Excludes `.git`, dev files, runtime `.mmdb`/archives. Includes bundled `data/countries.json` (required at runtime) and bundled MaxMind reader. |
+| 10. Languages module | Complete | KDNA_RC_Languages CRUD on `kdna_rc_languages`, fourth admin tab with Import-from-Library modal and live flag preview, bundled flag-icons v7.5.0 (270+ flags), Default Language on General tab, per-region default_language pointer, KDNA_RC_Language_Detector with five-step priority chain (override / cookie / browser / region / default), `kdna_language` cookie, `kdna_rc_set_language` public AJAX, extended `window.kdnaRC`, frontend.js gated pending-state release, Tools-tab Test Language Detection. |
 
 ---
 

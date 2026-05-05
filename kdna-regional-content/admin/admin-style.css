@@ -311,3 +311,164 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* =============== Languages tab =============== */
+
+.kdna-rc-languages h2 {
+	margin-top: 0;
+}
+
+.kdna-rc-language-list {
+	margin: 1em 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.kdna-rc-language {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin-bottom: 8px;
+	overflow: hidden;
+}
+
+.kdna-rc-language.is-editing {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1 inset;
+}
+
+.kdna-rc-language .kdna-rc-region-row {
+	grid-template-columns: 28px 32px minmax(160px, 1.4fr) minmax(120px, 1fr) auto;
+}
+
+.kdna-rc-flag-cell {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.kdna-rc-flag-display {
+	width: 24px;
+	height: 18px;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: 2px;
+}
+
+.kdna-rc-flag-input-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.kdna-rc-flag-preview {
+	display: inline-block;
+	width: 32px;
+	height: 24px;
+	border: 1px solid #dcdcde;
+	border-radius: 2px;
+	background: #f6f7f7;
+}
+
+.kdna-rc-header-actions {
+	display: inline-flex;
+	gap: 8px;
+}
+
+.kdna-rc-header-actions .button .dashicons {
+	margin-top: 2px;
+}
+
+/* Library import modal */
+
+.kdna-rc-modal {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 100000;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 6vh 1em;
+	overflow-y: auto;
+}
+
+.kdna-rc-modal[hidden] {
+	display: none;
+}
+
+.kdna-rc-modal-card {
+	background: #fff;
+	border-radius: 6px;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+	width: min(640px, 100%);
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+}
+
+.kdna-rc-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 20px;
+	border-bottom: 1px solid #e5e5e5;
+}
+
+.kdna-rc-modal-header h2 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.kdna-rc-modal-close {
+	font-size: 24px;
+	line-height: 1;
+	color: #6c7079;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+
+.kdna-rc-modal-body {
+	padding: 14px 20px;
+	overflow-y: auto;
+}
+
+.kdna-rc-library-search {
+	width: 100%;
+	margin-bottom: 12px;
+}
+
+.kdna-rc-library-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.kdna-rc-library-item {
+	display: grid;
+	grid-template-columns: 32px 1fr 60px auto;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 4px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.kdna-rc-library-item:last-child {
+	border-bottom: 0;
+}
+
+.kdna-rc-library-flag {
+	width: 24px;
+	height: 18px;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: 2px;
+}
+
+.kdna-rc-library-name {
+	font-size: 14px;
+}
+
+.kdna-rc-library-slug {
+	font-size: 11px;
+	color: #6c7079;
+}

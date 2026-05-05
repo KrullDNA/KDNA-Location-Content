@@ -150,11 +150,22 @@ final class KDNA_RC_Plugin {
 			$this->regions->init();
 		}
 
+		// Stage 10: Languages handler. Same instantiate-everywhere pattern as
+		// Regions; AJAX registered only inside admin.
+		$languages = new KDNA_RC_Languages();
+		if ( is_admin() ) {
+			$languages->init();
+		}
+
 		// Visitor detection. init() registers public AJAX (priv + nopriv),
 		// the early ?region= override handler, and the wp_head inline
 		// configuration printer. Safe to run in every context.
 		$this->detector = new KDNA_RC_Detector();
 		$this->detector->init();
+
+		// Stage 10 language detection. Public AJAX (priv + nopriv) for the
+		// Language Selector widget plus the early ?lang= override handler.
+		( new KDNA_RC_Language_Detector() )->init();
 
 		// Stage 5 visibility layer. Each handler is harmless when its
 		// integration target is missing (Elementor, JetEngine), so they

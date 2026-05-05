@@ -244,7 +244,26 @@
 		}
 	}
 
-	// Run the full pipeline once the visitor's region is known.
+	// Stage 10 state: frontend.js holds the resolved language slug for the
+	// Stage 11 variant swap. Exposed on window for downstream code (the
+	// Language Selector widget will read it).
+	window.kdnaRCResolved = window.kdnaRCResolved || { region: null, language: null };
+
+	function clearPendingIfReady() {
+		var hasLanguages = cfg.languages && cfg.languages.length > 0;
+		if ( window.kdnaRCResolved.region === null ) {
+			return;
+		}
+		if ( hasLanguages && window.kdnaRCResolved.language === null ) {
+			return;
+		}
+		clearPending();
+	}
+
+	// Run the region pipeline once the visitor's region is known. Pending
+	// state is only cleared after BOTH region and language are resolved
+	// (Stage 10) so cached pages with mixed regional + language content do
+	// not flash the wrong language while the detector is still running.
 	function applyForRegion( region ) {
 		debug( 'resolved region: "' + ( region || '(empty)' ) + '". Default region: "' + ( cfg.defaultRegion || '(empty)' ) + '".' );
 		debug( 'window.kdnaRCPostRegions =', window.kdnaRCPostRegions || {} );
@@ -252,7 +271,8 @@
 		applyVisibilityFilter( region );
 		applyVariantSwap( region );
 		applySinglePostPolicy( region );
-		clearPending();
+		window.kdnaRCResolved.region = region || '';
+		clearPendingIfReady();
 	}
 
 	// Detect the visitor's region by hitting the public AJAX endpoint. The
@@ -294,6 +314,182 @@
 		}
 	}
 
+	// =====================================================================
+	// Stage 10: language detection chain
+	//
+	// Priority:
+	//   1. ?lang= override (PHP already sets the cookie before we run; we
+	//      simply read it here).
+	//   2. Existing kdna_language cookie.
+	//   3. Browser language matched against configured languages, with
+	//      regional variants normalised (en-AU → en when en-AU absent).
+	//   4. The visitor's auto-detected region's mapped Default Language.
+	//   5. Configured Default Language fallback.
+	// =====================================================================
+
+	function languageList() {
+		return ( cfg.languages && cfg.languages.length ) ? cfg.languages : [];
+	}
+
+	function findLanguage( slug ) {
+		if ( ! slug ) {
+			return null;
+		}
+		slug = String( slug ).toLowerCase();
+		var list = languageList();
+		for ( var i = 0; i < list.length; i++ ) {
+			if ( list[ i ].slug.toLowerCase() === slug ) {
+				return list[ i ];
+			}
+		}
+		return null;
+	}
+
+	function browserLanguageMatch() {
+		var list = languageList();
+		if ( ! list.length ) {
+			return null;
+		}
+
+		// Build lookup tables: by full slug, and by primary language code
+		// (so en-AU falls back to en when only en is configured).
+		var bySlug = {};
+		var byPrimary = {};
+		for ( var i = 0; i < list.length; i++ ) {
+			var slug = list[ i ].slug.toLowerCase();
+			bySlug[ slug ] = list[ i ];
+			var primary = slug.split( /[-_]/ )[ 0 ];
+			if ( ! byPrimary[ primary ] ) {
+				byPrimary[ primary ] = list[ i ];
+			}
+		}
+
+		// navigator.languages is the canonical ordered list (Chrome, Firefox,
+		// Safari 14+); fall back to navigator.language for older browsers.
+		var candidates = [];
+		if ( navigator.languages && navigator.languages.length ) {
+			candidates = candidates.concat( navigator.languages );
+		}
+		if ( navigator.language ) {
+			candidates.push( navigator.language );
+		}
+
+		for ( var j = 0; j < candidates.length; j++ ) {
+			var tag = String( candidates[ j ] ).toLowerCase();
+			if ( bySlug[ tag ] ) {
+				return bySlug[ tag ];
+			}
+			var primary = tag.split( /[-_]/ )[ 0 ];
+			if ( bySlug[ primary ] ) {
+				return bySlug[ primary ];
+			}
+			if ( byPrimary[ primary ] ) {
+				return byPrimary[ primary ];
+			}
+		}
+		return null;
+	}
+
+	function regionMappedLanguage( region ) {
+		if ( ! region ) {
+			return null;
+		}
+		var map = cfg.regionLanguageMap || {};
+		var slug = map[ region ];
+		return slug ? findLanguage( slug ) : null;
+	}
+
+	function defaultLanguage() {
+		return findLanguage( cfg.defaultLanguage || '' );
+	}
+
+	function commitLanguageCookie( slug ) {
+		// Server-side cookie commit so the value persists across pages and
+		// the AJAX endpoint validates the slug. Falls back to a same-host
+		// document.cookie write when the AJAX URL is unavailable.
+		if ( cfg.ajaxUrl && cfg.setLanguageAction && cfg.setLanguageNonce ) {
+			try {
+				var xhr = new XMLHttpRequest();
+				xhr.open( 'POST', cfg.ajaxUrl, true );
+				xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8' );
+				xhr.send(
+					'action=' + encodeURIComponent( cfg.setLanguageAction ) +
+					'&nonce=' + encodeURIComponent( cfg.setLanguageNonce ) +
+					'&slug=' + encodeURIComponent( slug )
+				);
+			} catch ( err ) {
+				// Server commit failed; fall through to client-side cookie.
+				writeLanguageCookie( slug );
+			}
+		} else {
+			writeLanguageCookie( slug );
+		}
+	}
+
+	function writeLanguageCookie( slug ) {
+		var name = cfg.languageCookie || 'kdna_language';
+		var attrs = '; path=/; max-age=' + ( 60 * 60 * 24 * 30 ) + '; samesite=lax';
+		if ( window.location.protocol === 'https:' ) {
+			attrs += '; secure';
+		}
+		document.cookie = name + '=' + encodeURIComponent( slug ) + attrs;
+	}
+
+	function applyForLanguage( language, source ) {
+		var slug = language ? language.slug : '';
+		debug( 'resolved language: "' + ( slug || '(empty)' ) + '" via ' + source + '.' );
+		window.kdnaRCResolved.language = slug;
+		document.documentElement.setAttribute( 'data-kdna-language', slug || '' );
+		clearPendingIfReady();
+	}
+
+	function startLanguageDetection( resolvedRegion ) {
+		var list = languageList();
+		if ( ! list.length ) {
+			// No languages configured: nothing to resolve, skip the gate.
+			window.kdnaRCResolved.language = '';
+			clearPendingIfReady();
+			return;
+		}
+
+		// Step 1 / 2: cookie (URL override is already committed to it by PHP).
+		var cookieName  = cfg.languageCookie || 'kdna_language';
+		var cookieValue = readCookie( cookieName );
+		if ( cookieValue ) {
+			var fromCookie = findLanguage( cookieValue );
+			if ( fromCookie ) {
+				applyForLanguage( fromCookie, 'cookie' );
+				return;
+			}
+		}
+
+		// Step 3: browser language.
+		var browser = browserLanguageMatch();
+		if ( browser ) {
+			commitLanguageCookie( browser.slug );
+			applyForLanguage( browser, 'browser' );
+			return;
+		}
+
+		// Step 4: region's mapped default.
+		var regional = regionMappedLanguage( resolvedRegion );
+		if ( regional ) {
+			commitLanguageCookie( regional.slug );
+			applyForLanguage( regional, 'region' );
+			return;
+		}
+
+		// Step 5: configured default.
+		var fallback = defaultLanguage();
+		if ( fallback ) {
+			commitLanguageCookie( fallback.slug );
+			applyForLanguage( fallback, 'default' );
+			return;
+		}
+
+		applyForLanguage( null, 'none' );
+	}
+
 	// Re-arm a local safety timer in addition to the inline-script one so
 	// long-running fetches still surface content rather than wait forever.
 	safetyTimer = window.setTimeout( clearPending, 1500 );
@@ -302,11 +498,14 @@
 		var cookieValue = readCookie( COOKIE );
 		if ( cookieValue ) {
 			applyForRegion( cookieValue );
+			startLanguageDetection( cookieValue );
 			return;
 		}
 
 		fetchRegion( function ( slug ) {
-			applyForRegion( slug || cfg.defaultRegion || '' );
+			var resolved = slug || cfg.defaultRegion || '';
+			applyForRegion( resolved );
+			startLanguageDetection( resolved );
 		} );
 	}
 

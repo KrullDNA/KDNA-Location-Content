@@ -479,6 +479,43 @@ class KDNA_RC_Detector {
 			'nonce'         => wp_create_nonce( 'kdna_rc_detect' ),
 		);
 
+		// Stage 10: Language layer. Bundled additively so existing keys are
+		// untouched. The Language Selector widget (Stage 11) and the
+		// frontend.js detection chain both read from these.
+		if ( class_exists( 'KDNA_RC_Languages' ) && class_exists( 'KDNA_RC_Language_Detector' ) ) {
+			$languages_handler = new KDNA_RC_Languages();
+			$languages_list    = array();
+			foreach ( $languages_handler->get_all() as $language ) {
+				$languages_list[] = array(
+					'slug' => $language['slug'],
+					'name' => $language['name'],
+					'flag' => $language['flag'],
+				);
+			}
+
+			$current_language = '';
+			if ( ! empty( $_COOKIE[ KDNA_RC_Language_Detector::COOKIE_NAME ] ) ) {
+				$current_language = sanitize_key( wp_unslash( $_COOKIE[ KDNA_RC_Language_Detector::COOKIE_NAME ] ) );
+			}
+
+			$settings        = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+			$default_lang    = is_array( $settings ) && isset( $settings['default_language'] ) ? (string) $settings['default_language'] : '';
+			$region_to_lang  = array();
+			foreach ( ( new KDNA_RC_Regions() )->get_all() as $region ) {
+				if ( ! empty( $region['default_language'] ) ) {
+					$region_to_lang[ $region['slug'] ] = $region['default_language'];
+				}
+			}
+
+			$payload['defaultLanguage']   = $default_lang;
+			$payload['currentLanguage']   = $current_language;
+			$payload['languages']         = $languages_list;
+			$payload['languageCookie']    = KDNA_RC_Language_Detector::COOKIE_NAME;
+			$payload['setLanguageAction'] = KDNA_RC_Language_Detector::AJAX_SET_ACTION;
+			$payload['setLanguageNonce']  = wp_create_nonce( 'kdna_rc_set_language' );
+			$payload['regionLanguageMap'] = $region_to_lang;
+		}
+
 		echo "<script id=\"kdna-rc-config\">window.kdnaRC = " . wp_json_encode( $payload ) . ";</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON encoding is the appropriate escape here.
 	}
 

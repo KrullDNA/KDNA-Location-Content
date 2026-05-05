@@ -23,13 +23,16 @@ $countries       = KDNA_RC_Regions::country_list();
  * @param array $region Region data.
  * @return void
  */
-$render_row = function ( array $region ) {
-	$slug      = isset( $region['slug'] ) ? $region['slug'] : '';
-	$name      = isset( $region['name'] ) ? $region['name'] : '';
-	$type      = isset( $region['type'] ) ? $region['type'] : 'single';
-	$countries = isset( $region['countries'] ) && is_array( $region['countries'] ) ? $region['countries'] : array();
-	$language  = isset( $region['language'] ) ? $region['language'] : '';
-	$direction = isset( $region['direction'] ) ? $region['direction'] : 'ltr';
+$languages_for_regions = ( new KDNA_RC_Languages() )->get_all();
+
+$render_row = function ( array $region ) use ( $languages_for_regions ) {
+	$slug             = isset( $region['slug'] ) ? $region['slug'] : '';
+	$name             = isset( $region['name'] ) ? $region['name'] : '';
+	$type             = isset( $region['type'] ) ? $region['type'] : 'single';
+	$countries        = isset( $region['countries'] ) && is_array( $region['countries'] ) ? $region['countries'] : array();
+	$language         = isset( $region['language'] ) ? $region['language'] : '';
+	$direction        = isset( $region['direction'] ) ? $region['direction'] : 'ltr';
+	$default_language = isset( $region['default_language'] ) ? $region['default_language'] : '';
 	?>
 	<li class="kdna-rc-region" data-slug="<?php echo esc_attr( $slug ); ?>">
 		<div class="kdna-rc-region-row">
@@ -91,6 +94,19 @@ $render_row = function ( array $region ) {
 					<label><input type="radio" class="kdna-rc-input-direction" value="ltr"<?php checked( 'ltr', $direction ); ?> /> <?php echo esc_html__( 'Left to right', 'kdna-regional-content' ); ?></label>
 					<label><input type="radio" class="kdna-rc-input-direction" value="rtl"<?php checked( 'rtl', $direction ); ?> /> <?php echo esc_html__( 'Right to left', 'kdna-regional-content' ); ?></label>
 				</fieldset>
+
+				<?php if ( ! empty( $languages_for_regions ) ) : ?>
+				<label class="kdna-rc-field">
+					<span class="kdna-rc-label"><?php echo esc_html__( 'Default Language for this Region', 'kdna-regional-content' ); ?></span>
+					<select class="kdna-rc-input-default-language">
+						<option value="" <?php selected( '', $default_language ); ?>><?php echo esc_html__( 'None (use the configured default)', 'kdna-regional-content' ); ?></option>
+						<?php foreach ( $languages_for_regions as $lang ) : ?>
+							<option value="<?php echo esc_attr( $lang['slug'] ); ?>" <?php selected( $lang['slug'], $default_language ); ?>><?php echo esc_html( $lang['name'] ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<span class="description"><?php echo esc_html__( 'When a visitor lands in this region, this language is preselected for them. Optional.', 'kdna-regional-content' ); ?></span>
+				</label>
+				<?php endif; ?>
 			</div>
 
 			<p class="kdna-rc-form-actions">
