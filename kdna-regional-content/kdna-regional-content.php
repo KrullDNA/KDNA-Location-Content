@@ -87,12 +87,15 @@ function kdna_rc_activate() {
 		add_option(
 			KDNA_RC_OPTION_SETTINGS,
 			array(
-				'maxmind_license_key'  => '',
-				'db_update_schedule'   => 'kdna_rc_monthly',
-				'default_region'       => '',
-				'test_override_mode'   => 'admins',
-				'trust_proxy_headers'  => true,
-				'cookie_lifetime_days' => 30,
+				'maxmind_license_key'        => '',
+				'db_update_schedule'         => 'kdna_rc_monthly',
+				'default_region'             => '',
+				'test_override_mode'         => 'admins',
+				'trust_proxy_headers'        => true,
+				'cookie_lifetime_days'       => 30,
+				'restricted_post_types'      => array(),
+				'single_post_behaviour'      => 'show',
+				'single_post_redirect_url'   => '',
 			)
 		);
 	}

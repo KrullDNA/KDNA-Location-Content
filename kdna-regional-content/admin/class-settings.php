@@ -90,8 +90,11 @@ class KDNA_RC_Settings {
 				'type'              => 'array',
 				'sanitize_callback' => array( $this, 'sanitise_settings' ),
 				'default'           => array(
-					'maxmind_license_key' => '',
-					'default_region'      => '',
+					'maxmind_license_key'      => '',
+					'default_region'           => '',
+					'restricted_post_types'    => array(),
+					'single_post_behaviour'    => 'show',
+					'single_post_redirect_url' => '',
 				),
 			)
 		);
@@ -162,6 +165,32 @@ class KDNA_RC_Settings {
 			self::PAGE_SLUG . '-general',
 			'kdna_rc_section_detection',
 			array( 'label_for' => 'kdna_rc_cookie_lifetime' )
+		);
+
+		// Stage 5: post-level region visibility settings, appended to the
+		// General tab so editors find every region-related toggle in one
+		// place. A separate section keeps them visually grouped.
+		add_settings_section(
+			'kdna_rc_section_post_visibility',
+			__( 'Post-level Region Visibility', 'kdna-regional-content' ),
+			array( $this, 'render_section_post_visibility' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'restricted_post_types',
+			__( 'Post Types with Region Visibility', 'kdna-regional-content' ),
+			array( $this, 'render_field_restricted_post_types' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_post_visibility'
+		);
+
+		add_settings_field(
+			'single_post_behaviour',
+			__( 'Single Post Behaviour for Restricted Posts', 'kdna-regional-content' ),
+			array( $this, 'render_field_single_post_behaviour' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_post_visibility'
 		);
 
 		// Tools tab: auto-update schedule lives inside the same option key
@@ -255,6 +284,35 @@ class KDNA_RC_Settings {
 				$days = 365;
 			}
 			$clean['cookie_lifetime_days'] = $days;
+		}
+
+		// Stage 5: post types participating in region visibility. Hidden
+		// presence flag lets us distinguish "user unticked everything" from
+		// "form did not include this section" so existing values survive
+		// saves from other tabs.
+		if ( array_key_exists( 'restricted_post_types_present', $input ) ) {
+			$raw   = isset( $input['restricted_post_types'] ) && is_array( $input['restricted_post_types'] ) ? $input['restricted_post_types'] : array();
+			$valid = array();
+			foreach ( $raw as $slug ) {
+				$slug = sanitize_key( $slug );
+				if ( $slug && post_type_exists( $slug ) && ! in_array( $slug, $valid, true ) ) {
+					$valid[] = $slug;
+				}
+			}
+			$clean['restricted_post_types'] = $valid;
+		}
+
+		if ( array_key_exists( 'single_post_behaviour', $input ) ) {
+			$mode = sanitize_key( wp_unslash( $input['single_post_behaviour'] ) );
+			if ( ! in_array( $mode, array( 'show', 'redirect' ), true ) ) {
+				$mode = 'show';
+			}
+			$clean['single_post_behaviour'] = $mode;
+		}
+
+		if ( array_key_exists( 'single_post_redirect_url', $input ) ) {
+			$url = esc_url_raw( wp_unslash( $input['single_post_redirect_url'] ) );
+			$clean['single_post_redirect_url'] = $url;
 		}
 
 		return $clean;
@@ -414,6 +472,90 @@ class KDNA_RC_Settings {
 		);
 		echo ' <span>' . esc_html__( 'days', 'kdna-regional-content' ) . '</span>';
 		echo '<p class="description">' . esc_html__( 'How long the kdna_region cookie persists in the visitor browser. Between 1 and 365 days. Default 30.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the introductory copy for the post-level visibility section.
+	 *
+	 * @return void
+	 */
+	public function render_section_post_visibility() {
+		echo '<p>' . esc_html__( 'Tick the post types whose editors should see a Regional Visibility meta box. Editors then pick which regions are allowed to see each post.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the post-types checkbox group.
+	 *
+	 * @return void
+	 */
+	public function render_field_restricted_post_types() {
+		$settings  = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$selected  = isset( $settings[ KDNA_RC_Post_Visibility::SETTING_KEY ] ) ? (array) $settings[ KDNA_RC_Post_Visibility::SETTING_KEY ] : array();
+		$idx       = array_flip( $selected );
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+
+		// Hidden presence flag so an empty selection still saves cleanly.
+		printf(
+			'<input type="hidden" name="%1$s[restricted_post_types_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+
+		if ( empty( $post_types ) ) {
+			echo '<p>' . esc_html__( 'No public post types found.', 'kdna-regional-content' ) . '</p>';
+			return;
+		}
+
+		echo '<fieldset>';
+		foreach ( $post_types as $type ) {
+			$slug    = (string) $type->name;
+			$label   = isset( $type->labels->singular_name ) ? (string) $type->labels->singular_name : $slug;
+			$checked = isset( $idx[ $slug ] ) ? ' checked' : '';
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="checkbox" name="%1$s[restricted_post_types][]" value="%2$s"%3$s /> %4$s <code style="font-size:11px; color:#6c7079;">%2$s</code></label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $slug ),
+				$checked, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal " checked" string above.
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'A Regional Visibility meta box appears in the editor sidebar for the selected post types. Posts with no regions ticked show everywhere.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Single Post Behaviour radio group plus URL field.
+	 *
+	 * @return void
+	 */
+	public function render_field_single_post_behaviour() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$mode     = isset( $settings['single_post_behaviour'] ) ? (string) $settings['single_post_behaviour'] : 'show';
+		$url      = isset( $settings['single_post_redirect_url'] ) ? (string) $settings['single_post_redirect_url'] : '';
+		if ( '' === $url ) {
+			$url = home_url( '/' );
+		}
+
+		echo '<fieldset>';
+		printf(
+			'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[single_post_behaviour]" value="show"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( 'show', $mode, false ),
+			esc_html__( 'Show anyway (the post stays visible regardless of region)', 'kdna-regional-content' )
+		);
+		printf(
+			'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[single_post_behaviour]" value="redirect"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( 'redirect', $mode, false ),
+			esc_html__( 'Redirect visitors not in the allowed regions to:', 'kdna-regional-content' )
+		);
+		printf(
+			'<p style="margin-top:6px;"><input type="url" name="%1$s[single_post_redirect_url]" value="%2$s" class="regular-text" placeholder="%3$s" /></p>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $url ),
+			esc_attr( home_url( '/' ) )
+		);
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'The redirect runs client-side from a meta tag, so it works on cached pages. Visitors not in any allowed region are sent to the URL above.', 'kdna-regional-content' ) . '</p>';
 	}
 
 	/**

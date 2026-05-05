@@ -54,6 +54,34 @@ final class KDNA_RC_Plugin {
 	private $detector = null;
 
 	/**
+	 * Elementor element visibility handler.
+	 *
+	 * @var KDNA_RC_Elementor_Visibility|null
+	 */
+	private $elementor_visibility = null;
+
+	/**
+	 * Post-level visibility handler.
+	 *
+	 * @var KDNA_RC_Post_Visibility|null
+	 */
+	private $post_visibility = null;
+
+	/**
+	 * JetEngine integration.
+	 *
+	 * @var KDNA_RC_JetEngine_Integration|null
+	 */
+	private $jetengine = null;
+
+	/**
+	 * Front-end assets handler.
+	 *
+	 * @var KDNA_RC_Assets|null
+	 */
+	private $assets = null;
+
+	/**
 	 * Return the singleton instance, creating it on first call.
 	 *
 	 * @return KDNA_RC_Plugin
@@ -116,6 +144,21 @@ final class KDNA_RC_Plugin {
 		// configuration printer. Safe to run in every context.
 		$this->detector = new KDNA_RC_Detector();
 		$this->detector->init();
+
+		// Stage 5 visibility layer. Each handler is harmless when its
+		// integration target is missing (Elementor, JetEngine), so they
+		// can be instantiated unconditionally.
+		$this->elementor_visibility = new KDNA_RC_Elementor_Visibility();
+		$this->elementor_visibility->init();
+
+		$this->post_visibility = new KDNA_RC_Post_Visibility();
+		$this->post_visibility->init();
+
+		$this->jetengine = new KDNA_RC_JetEngine_Integration();
+		$this->jetengine->init();
+
+		$this->assets = new KDNA_RC_Assets();
+		$this->assets->init();
 
 		// Boot the admin settings page only inside wp-admin.
 		if ( is_admin() ) {

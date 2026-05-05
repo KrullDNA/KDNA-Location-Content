@@ -373,7 +373,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | 2. MaxMind library + DB download | Complete | Bundled MaxMind reader v1.11.1 (Apache 2.0), Tools tab status panel, Update Database Now AJAX button, monthly WP-Cron schedule with weekly/never options. |
 | 3. Regions & Groups manager | Complete | KDNA_RC_Regions CRUD on `kdna_rc_regions`, full Regions tab UI (drag-reorder, inline editor, country search picker), bundled 249-country JSON, Default Region dropdown wired into General tab. |
 | 4. Visitor detection + cookie | Complete | KDNA_RC_Detector with priority-ordered IP detection, `kdna_region` cookie, public AJAX endpoint (`kdna_rc_detect_region`), `?region=` override modes, inline `window.kdnaRC` config in head, Tools tab Test Detection, General tab override mode + proxy + cookie lifetime fields, README with WP Rocket exclusion notes. |
-| 5. Visibility control on all widgets | Not started | |
+| 5. Visibility control on all widgets | Complete | Element + post visibility with JetEngine support: Elementor controls + render attribute, post-type meta box with `_kdna_rc_regions`, JetEngine listing-item attribute injection, single-post meta tag with redirect mode, anti-flicker inline style + script and frontend.js. |
 | 6. Heading + Text Editor variants | Not started | |
 | 7. Button + Image + Icon + Icon List | Not started | |
 | 8. WP Rocket + polish + README | Not started | |

@@ -1,0 +1,165 @@
+<?php
+/**
+ * Front-end assets, anti-flicker bootstrapping, and post-region meta output.
+ *
+ * @package KDNA_Regional_Content
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * KDNA_RC_Assets
+ *
+ * Owns the front-end side of Stage 5:
+ *   - prints the anti-flicker inline style and inline script in <head>
+ *     at priority 1 (after the detector's window.kdnaRC config which is
+ *     also at priority 1, registered earlier in the bootstrap),
+ *   - emits the meta name="kdna-rc-post-regions" tag on single posts,
+ *   - exposes the single-post redirect configuration to frontend.js,
+ *   - enqueues frontend.js and frontend.css.
+ */
+class KDNA_RC_Assets {
+
+	/**
+	 * Wire up front-end hooks. Skipped in admin.
+	 *
+	 * @return void
+	 */
+	public function init() {
+		if ( is_admin() ) {
+			return;
+		}
+
+		add_action( 'wp_head', array( $this, 'print_anti_flicker' ), 1 );
+		add_action( 'wp_head', array( $this, 'print_post_regions_meta' ), 1 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend' ) );
+	}
+
+	/**
+	 * Print the inline anti-flicker style and script in <head>.
+	 *
+	 * The CSS rule keeps every element with a data-kdna-show-in attribute
+	 * invisible while the page is in the pending state. The script adds the
+	 * pending class to <html> when the visitor's cookie is missing or does
+	 * not match the configured default region, and arms an 800ms safety
+	 * timeout so visitors are never stuck looking at blank space.
+	 *
+	 * Visibility is used (not display:none) so layout space is preserved
+	 * and there is no scroll jump or content shift when the swap completes.
+	 *
+	 * @return void
+	 */
+	public function print_anti_flicker() {
+		// CSS first so the rule is registered before any element with the
+		// data attribute renders.
+		echo "<style id=\"kdna-rc-pending-style\">\n";
+		echo ".kdna-rc-pending [data-kdna-show-in],\n";
+		echo ".kdna-rc-pending .kdna-rc-variant-wrapper { visibility: hidden; }\n";
+		echo "</style>\n";
+
+		// Read defaultRegion from window.kdnaRC (printed at priority 1 by the
+		// detector before this script runs, because hook callbacks fire in
+		// registration order at the same priority and the detector's hook is
+		// registered first by the plugin bootstrap).
+		?>
+<script id="kdna-rc-pending-script">
+(function () {
+	var cfg = window.kdnaRC || {};
+	var html = document.documentElement;
+	var def = cfg.defaultRegion || '';
+	var match = document.cookie.match(/(?:^|; )kdna_region=([^;]+)/);
+	var current = match ? decodeURIComponent(match[1]) : '';
+
+	// Only hide regional widgets when the visitor's cookie is missing or
+	// does not match the default. Visitors who already match the default
+	// region see zero hiding, zero delay.
+	if (!current || current !== def) {
+		html.classList.add('kdna-rc-pending');
+		window.setTimeout(function () {
+			html.classList.remove('kdna-rc-pending');
+		}, 800);
+	}
+})();
+</script>
+		<?php
+	}
+
+	/**
+	 * Print the post-regions meta tag on restricted single-post views.
+	 *
+	 * Stage 5 redirect handling reads this tag on the client because cached
+	 * pages skip PHP, so we cannot do a server-side wp_redirect on the
+	 * cached path. Visitors not in the listed regions are redirected by
+	 * frontend.js when the admin has configured "Redirect to URL".
+	 *
+	 * @return void
+	 */
+	public function print_post_regions_meta() {
+		if ( ! is_singular() ) {
+			return;
+		}
+
+		$post_id = (int) get_queried_object_id();
+		if ( $post_id <= 0 ) {
+			return;
+		}
+
+		$regions = KDNA_RC_Post_Visibility::get_post_regions( $post_id );
+		if ( empty( $regions ) ) {
+			return;
+		}
+
+		printf(
+			'<meta name="kdna-rc-post-regions" content="%s" />' . "\n",
+			esc_attr( implode( ',', $regions ) )
+		);
+	}
+
+	/**
+	 * Enqueue the front-end script and stylesheet.
+	 *
+	 * Localises the visibility-mode and redirect configuration the script
+	 * needs. The cookie name and AJAX URL come from window.kdnaRC (printed
+	 * by the detector) so we do not duplicate them here.
+	 *
+	 * @return void
+	 */
+	public function enqueue_frontend() {
+		wp_enqueue_style(
+			'kdna-rc-frontend',
+			KDNA_RC_PLUGIN_URL . 'assets/css/frontend.css',
+			array(),
+			KDNA_RC_VERSION
+		);
+
+		wp_enqueue_script(
+			'kdna-rc-frontend',
+			KDNA_RC_PLUGIN_URL . 'assets/js/frontend.js',
+			array(),
+			KDNA_RC_VERSION,
+			array(
+				'in_footer' => false,
+				'strategy'  => 'defer',
+			)
+		);
+
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$single_mode = isset( $settings['single_post_behaviour'] ) ? (string) $settings['single_post_behaviour'] : 'show';
+		$redirect    = isset( $settings['single_post_redirect_url'] ) ? (string) $settings['single_post_redirect_url'] : '';
+		if ( '' === $redirect ) {
+			$redirect = home_url( '/' );
+		}
+
+		wp_localize_script(
+			'kdna-rc-frontend',
+			'kdnaRCFrontend',
+			array(
+				'visibilityMode' => 'hide', // Reserved for a future "remove from DOM" toggle.
+				'singleMode'     => $single_mode, // 'show' or 'redirect'.
+				'redirectUrl'    => esc_url_raw( $redirect ),
+			)
+		);
+	}
+}

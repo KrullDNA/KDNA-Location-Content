@@ -1,0 +1,18 @@
+/*
+ * KDNA Regional Content frontend styles.
+ *
+ * The anti-flicker rule itself lives inline in <head> so it applies before
+ * this stylesheet downloads. This file holds layout cleanup for hidden
+ * elements, in particular flexbox-based listing grids that would otherwise
+ * leave gaps where a hidden item used to sit.
+ *
+ * CSS Grid items collapse cleanly when display:none is applied, so most
+ * Elementor and JetEngine grids need nothing extra. Flex-based listings
+ * sometimes leave gap space; the rule below ensures the hidden item also
+ * collapses its margin contribution.
+ */
+
+[data-kdna-show-in][style*="display: none"],
+[data-kdna-show-in][style*="display:none"] {
+	margin: 0 !important;
+}
