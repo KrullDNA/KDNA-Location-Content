@@ -625,36 +625,46 @@
 			return;
 		}
 
-		// Drag to reorder.
-		$list.sortable( {
-			handle: '.kdna-rc-handle',
-			items: '> li.kdna-rc-language',
-			axis: 'y',
-			placeholder: 'kdna-rc-region-placeholder',
-			forcePlaceholderSize: true,
-			update: function () {
-				var slugs = [];
-				$list.children( 'li.kdna-rc-language' ).each( function () {
-					var slug = $( this ).attr( 'data-slug' );
-					if ( slug ) {
-						slugs.push( slug );
-					}
-				} );
-				if ( ! slugs.length ) {
-					return;
-				}
-				$.ajax( {
-					url: config.ajaxUrl,
-					method: 'POST',
-					dataType: 'json',
-					data: {
-						action: config.actions.reorderLanguages,
-						nonce: config.nonce,
-						slugs: slugs
+		// Drag to reorder. Wrapped in try/catch because if jQuery UI Sortable
+		// fails to initialise (e.g. another plugin's broken script) the
+		// remaining click bindings below must still work.
+		try {
+			if ( typeof $list.sortable === 'function' ) {
+				$list.sortable( {
+					handle: '.kdna-rc-handle',
+					items: '> li.kdna-rc-language',
+					axis: 'y',
+					placeholder: 'kdna-rc-region-placeholder',
+					forcePlaceholderSize: true,
+					update: function () {
+						var slugs = [];
+						$list.children( 'li.kdna-rc-language' ).each( function () {
+							var slug = $( this ).attr( 'data-slug' );
+							if ( slug ) {
+								slugs.push( slug );
+							}
+						} );
+						if ( ! slugs.length ) {
+							return;
+						}
+						$.ajax( {
+							url: config.ajaxUrl,
+							method: 'POST',
+							dataType: 'json',
+							data: {
+								action: config.actions.reorderLanguages,
+								nonce: config.nonce,
+								slugs: slugs
+							}
+						} );
 					}
 				} );
 			}
-		} );
+		} catch ( err ) {
+			if ( window.console && window.console.warn ) {
+				window.console.warn( '[KDNA RC] Languages: sortable init failed, drag-reorder disabled.', err );
+			}
+		}
 
 		function updateRowSummary( $row, payload ) {
 			var $name = $row.find( '.kdna-rc-region-name' );
@@ -708,16 +718,25 @@
 			}
 		}
 
-		// Add Language: clone the empty template.
-		$( '.kdna-rc-add-language' ).on( 'click', function ( event ) {
+		// Add Language: clone the empty template. Delegated to document so
+		// the binding cannot miss the button on first paint and survives
+		// re-renders by other admin scripts.
+		$( document ).on( 'click', '.kdna-rc-add-language', function ( event ) {
 			event.preventDefault();
 			var template = document.getElementById( 'kdna-rc-language-template' );
 			if ( ! template || ! template.content ) {
+				if ( window.console && window.console.warn ) {
+					window.console.warn( '[KDNA RC] Languages template missing; cannot Add Language.' );
+				}
 				return;
 			}
-			var $clone = $( template.content.firstElementChild.cloneNode( true ) );
+			var first = template.content.firstElementChild;
+			if ( ! first ) {
+				return;
+			}
+			var $clone = $( first.cloneNode( true ) );
 			$clone.addClass( 'is-new' );
-			$clone.find( '.kdna-rc-region-name' ).text( config.i18n.newLanguage );
+			$clone.find( '.kdna-rc-region-name' ).text( config.i18n.newLanguage || 'New language' );
 			$list.append( $clone );
 			$( '.kdna-rc-languages .kdna-rc-empty' ).hide();
 			openEditor( $clone );
