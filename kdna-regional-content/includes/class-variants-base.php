@@ -45,6 +45,20 @@ abstract class KDNA_RC_Variants_Base {
 	const FIELD_REGION = 'kdna_rc_region';
 
 	/**
+	 * Stage 11: Language repeater control id.
+	 *
+	 * @var string
+	 */
+	const LANG_REPEATER = 'kdna_rc_language_variants';
+
+	/**
+	 * Stage 11: Language selector field id inside each language repeater row.
+	 *
+	 * @var string
+	 */
+	const FIELD_LANGUAGE = 'kdna_rc_language';
+
+	/**
 	 * Return the Elementor widget name this extension targets.
 	 *
 	 * @return string
@@ -96,6 +110,10 @@ abstract class KDNA_RC_Variants_Base {
 			$this->controls_section()
 		);
 		add_action( $hook, array( $this, 'register_controls' ), 10, 2 );
+		// Stage 11: Language Content section sits alongside the Regional
+		// Content section. Registered at priority 11 so it lands directly
+		// below the regional one in the editor panel.
+		add_action( $hook, array( $this, 'register_language_controls' ), 11, 2 );
 		add_filter( 'elementor/widget/render_content', array( $this, 'render_content' ), 10, 2 );
 	}
 
@@ -177,6 +195,85 @@ abstract class KDNA_RC_Variants_Base {
 	}
 
 	/**
+	 * Inject the Language Content controls section into the target widget.
+	 *
+	 * Mirrors register_controls() but reads from KDNA_RC_Languages and stores
+	 * its repeater on a separate control id (LANG_REPEATER), so the existing
+	 * Region repeater is untouched. Same per-widget fields are appended via
+	 * the existing register_variant_fields() abstract on the subclass.
+	 *
+	 * @param mixed $element Element_Base instance from Elementor.
+	 * @param array $args    Hook args.
+	 * @return void
+	 */
+	public function register_language_controls( $element, $args = array() ) {
+		unset( $args );
+
+		if ( ! is_object( $element ) || ! method_exists( $element, 'start_controls_section' ) ) {
+			return;
+		}
+
+		$languages = ( new KDNA_RC_Languages() )->get_all();
+
+		$element->start_controls_section(
+			'kdna_rc_language_variants_section',
+			array(
+				'label' => __( 'Language Content', 'kdna-regional-content' ),
+				'tab'   => defined( 'Elementor\\Controls_Manager::TAB_CONTENT' ) ? \Elementor\Controls_Manager::TAB_CONTENT : 'content',
+			)
+		);
+
+		if ( empty( $languages ) ) {
+			$element->add_control(
+				'kdna_rc_language_variants_no_languages',
+				array(
+					'type'            => defined( 'Elementor\\Controls_Manager::RAW_HTML' ) ? \Elementor\Controls_Manager::RAW_HTML : 'raw_html',
+					'raw'             => sprintf(
+						/* translators: %s: link to the Languages admin tab. */
+						__( 'No languages are configured yet. Add some on the %s.', 'kdna-regional-content' ),
+						'<a href="' . esc_url( admin_url( 'admin.php?page=kdna-regional-content&tab=languages' ) ) . '" target="_blank">' . esc_html__( 'Languages tab', 'kdna-regional-content' ) . '</a>'
+					),
+					'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
+				)
+			);
+			$element->end_controls_section();
+			return;
+		}
+
+		$choices = array( '' => __( 'Select a language...', 'kdna-regional-content' ) );
+		foreach ( $languages as $language ) {
+			$choices[ $language['slug'] ] = $language['name'];
+		}
+
+		$repeater = new \Elementor\Repeater();
+		$repeater->add_control(
+			self::FIELD_LANGUAGE,
+			array(
+				'label'   => __( 'Language', 'kdna-regional-content' ),
+				'type'    => defined( 'Elementor\\Controls_Manager::SELECT' ) ? \Elementor\Controls_Manager::SELECT : 'select',
+				'options' => $choices,
+				'default' => '',
+			)
+		);
+
+		$this->register_variant_fields( $repeater );
+
+		$element->add_control(
+			self::LANG_REPEATER,
+			array(
+				'label'       => __( 'Variants', 'kdna-regional-content' ),
+				'type'        => defined( 'Elementor\\Controls_Manager::REPEATER' ) ? \Elementor\Controls_Manager::REPEATER : 'repeater',
+				'fields'      => $repeater->get_controls(),
+				'default'     => array(),
+				'title_field' => '{{{ ' . self::FIELD_LANGUAGE . ' }}}',
+				'description' => __( 'Add one row per language. When a visitor uses that language, this variant wins over any matching regional variant.', 'kdna-regional-content' ),
+			)
+		);
+
+		$element->end_controls_section();
+	}
+
+	/**
 	 * Filter callback wrapping the widget output with the variant tree.
 	 *
 	 * @param string $content Original rendered widget content.
@@ -193,13 +290,16 @@ abstract class KDNA_RC_Variants_Base {
 
 		$settings = method_exists( $widget, 'get_settings_for_display' ) ? $widget->get_settings_for_display() : array();
 		$variants = isset( $settings[ self::CTRL_REPEATER ] ) && is_array( $settings[ self::CTRL_REPEATER ] ) ? $settings[ self::CTRL_REPEATER ] : array();
+		$lang_variants = isset( $settings[ self::LANG_REPEATER ] ) && is_array( $settings[ self::LANG_REPEATER ] ) ? $settings[ self::LANG_REPEATER ] : array();
 
-		$prepared = $this->prepare_variants( $variants );
-		if ( empty( $prepared ) ) {
+		$prepared      = $this->prepare_variants( $variants );
+		$prepared_lang = $this->prepare_language_variants( $lang_variants );
+
+		if ( empty( $prepared ) && empty( $prepared_lang ) ) {
 			return $content;
 		}
 
-		return $this->wrap( $content, $prepared );
+		return $this->wrap( $content, $prepared, $prepared_lang );
 	}
 
 	/**
@@ -237,6 +337,40 @@ abstract class KDNA_RC_Variants_Base {
 	}
 
 	/**
+	 * Stage 11: Validate and normalise language repeater rows.
+	 *
+	 * Mirrors prepare_variants() against the KDNA_RC_Languages handler so
+	 * language variants follow the same uniqueness, validation, and
+	 * decoration rules as regional ones.
+	 *
+	 * @param array $variants Raw language repeater rows.
+	 * @return array<int,array>
+	 */
+	protected function prepare_language_variants( array $variants ) {
+		$languages_handler = new KDNA_RC_Languages();
+		$seen              = array();
+		$out               = array();
+
+		foreach ( $variants as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$slug = isset( $row[ self::FIELD_LANGUAGE ] ) ? sanitize_key( (string) $row[ self::FIELD_LANGUAGE ] ) : '';
+			if ( '' === $slug || isset( $seen[ $slug ] ) ) {
+				continue;
+			}
+			$language = $languages_handler->get( $slug );
+			if ( null === $language ) {
+				continue;
+			}
+			$seen[ $slug ]    = true;
+			$row['_language'] = $language;
+			$out[]            = $row;
+		}
+		return $out;
+	}
+
+	/**
 	 * Wrap the original content with the default variant plus appended variants.
 	 *
 	 * The wrapper is a thin div so it interacts cleanly with both classic
@@ -247,13 +381,21 @@ abstract class KDNA_RC_Variants_Base {
 	 * @param array  $variants Prepared variants.
 	 * @return string
 	 */
-	protected function wrap( $content, array $variants ) {
+	protected function wrap( $content, array $variants, array $language_variants = array() ) {
 		$out  = '<div class="kdna-rc-variant-wrapper">';
 		$out .= '<div class="kdna-rc-variant kdna-rc-default" data-kdna-region="default">' . $content . '</div>';
 
 		foreach ( $variants as $variant ) {
 			$variant_html = $this->transform_default_html( $content, $variant );
 			$attrs        = $this->variant_attributes( $variant );
+			$out         .= '<div class="kdna-rc-variant" ' . $attrs . ' style="display:none">' . $variant_html . '</div>';
+		}
+
+		// Stage 11: language variants. Same shape as regional siblings but
+		// tagged with data-kdna-language so the JS swap can prefer them.
+		foreach ( $language_variants as $variant ) {
+			$variant_html = $this->transform_default_html( $content, $variant );
+			$attrs        = $this->language_variant_attributes( $variant );
 			$out         .= '<div class="kdna-rc-variant" ' . $attrs . ' style="display:none">' . $variant_html . '</div>';
 		}
 
@@ -283,6 +425,36 @@ abstract class KDNA_RC_Variants_Base {
 		}
 		if ( '' !== $dir ) {
 			$parts[] = 'dir="' . esc_attr( $dir ) . '"';
+		}
+		return implode( ' ', $parts );
+	}
+
+	/**
+	 * Stage 11: build the attribute string for a language variant wrapper.
+	 *
+	 * Always emits data-kdna-language; emits a lang attribute mirroring the
+	 * variant slug when no other language tag is configured, and dir="rtl"
+	 * for language slugs known to be right-to-left.
+	 *
+	 * @param array $variant Variant row including the resolved _language.
+	 * @return string
+	 */
+	protected function language_variant_attributes( array $variant ) {
+		$language = isset( $variant['_language'] ) ? $variant['_language'] : array();
+		$slug     = isset( $language['slug'] ) ? (string) $language['slug'] : '';
+
+		// Map of slugs (lowercase) known to render right-to-left so the
+		// rendered variant gets the right dir attribute without admins
+		// having to think about it.
+		$rtl_slugs = array( 'ar', 'fa', 'he', 'ur', 'ps', 'sd', 'ckb', 'yi' );
+
+		$parts   = array();
+		$parts[] = 'data-kdna-language="' . esc_attr( $slug ) . '"';
+		if ( '' !== $slug ) {
+			$parts[] = 'lang="' . esc_attr( $slug ) . '"';
+		}
+		if ( '' !== $slug && in_array( strtolower( $slug ), $rtl_slugs, true ) ) {
+			$parts[] = 'dir="rtl"';
 		}
 		return implode( ' ', $parts );
 	}

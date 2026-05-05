@@ -69,14 +69,26 @@ class KDNA_RC_Assets {
 (function () {
 	var cfg = window.kdnaRC || {};
 	var html = document.documentElement;
-	var def = cfg.defaultRegion || '';
-	var match = document.cookie.match(/(?:^|; )kdna_region=([^;]+)/);
-	var current = match ? decodeURIComponent(match[1]) : '';
 
-	// Only hide regional widgets when the visitor's cookie is missing or
-	// does not match the default. Visitors who already match the default
-	// region see zero hiding, zero delay.
-	if (!current || current !== def) {
+	// Region branch: enter pending when the cookie is missing or does not
+	// match the configured default region. Default-region returning visitors
+	// see zero hiding.
+	var regionDefault = cfg.defaultRegion || '';
+	var regionMatch = document.cookie.match(/(?:^|; )kdna_region=([^;]+)/);
+	var regionCookie = regionMatch ? decodeURIComponent(regionMatch[1]) : '';
+	var needRegionPending = !regionCookie || regionCookie !== regionDefault;
+
+	// Language branch (Stage 10): same logic against the language cookie and
+	// configured Default Language. When no languages are configured the
+	// branch is silent so existing single-language sites are unchanged.
+	var languageDefault = cfg.defaultLanguage || '';
+	var languageCookieName = cfg.languageCookie || 'kdna_language';
+	var languageMatch = document.cookie.match(new RegExp('(?:^|; )' + languageCookieName + '=([^;]+)'));
+	var languageCookie = languageMatch ? decodeURIComponent(languageMatch[1]) : '';
+	var hasLanguages = cfg.languages && cfg.languages.length > 0;
+	var needLanguagePending = hasLanguages && (!languageCookie || (languageDefault && languageCookie !== languageDefault));
+
+	if (needRegionPending || needLanguagePending) {
 		html.classList.add('kdna-rc-pending');
 		window.setTimeout(function () {
 			html.classList.remove('kdna-rc-pending');
@@ -166,10 +178,21 @@ class KDNA_RC_Assets {
 	 * @return void
 	 */
 	public function enqueue_frontend() {
+		// Stage 10: flag-icons. Always enqueued so the Stage 11 Language
+		// Selector widget is zero-config. The CSS is small (~70 KB minified)
+		// and the SVG flags are loaded lazily by the browser only when the
+		// matching .fi-XX class appears in the DOM.
+		wp_enqueue_style(
+			'kdna-rc-flag-icons',
+			KDNA_RC_PLUGIN_URL . 'lib/flag-icons/css/flag-icons.min.css',
+			array(),
+			'7.5.0'
+		);
+
 		wp_enqueue_style(
 			'kdna-rc-frontend',
 			KDNA_RC_PLUGIN_URL . 'assets/css/frontend.css',
-			array(),
+			array( 'kdna-rc-flag-icons' ),
 			KDNA_RC_VERSION
 		);
 
@@ -177,6 +200,27 @@ class KDNA_RC_Assets {
 			'kdna-rc-frontend',
 			KDNA_RC_PLUGIN_URL . 'assets/js/frontend.js',
 			array(),
+			KDNA_RC_VERSION,
+			array(
+				'in_footer' => false,
+				'strategy'  => 'defer',
+			)
+		);
+
+		// Stage 11: Language Selector widget assets. Always enqueued on the
+		// front end so the widget is zero-config wherever an editor drops
+		// it. Both files are tiny.
+		wp_enqueue_style(
+			'kdna-rc-language-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/css/language-selector.css',
+			array( 'kdna-rc-flag-icons' ),
+			KDNA_RC_VERSION
+		);
+
+		wp_enqueue_script(
+			'kdna-rc-language-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/js/language-selector.js',
+			array( 'kdna-rc-frontend' ),
 			KDNA_RC_VERSION,
 			array(
 				'in_footer' => false,

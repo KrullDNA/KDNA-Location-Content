@@ -188,6 +188,30 @@ The **Tools, Clear All Caches** button flushes the WP Rocket page cache, the Wor
 - Deactivating the plugin only stops it running; settings and the database file stay in place.
 - Uninstalling (Plugins, Delete) **preserves your data by default** so a delete-and-reinstall cycle restores everything. Tick **Regional Content, General, Delete data on uninstall** if you want a clean wipe; only then does `uninstall.php` remove the `kdna_rc_settings`, `kdna_rc_regions`, and `kdna_rc_db_status` options, delete `_kdna_rc_regions` post meta, clear plugin transients, unschedule the cron event, and remove `wp-content/uploads/kdna-regional-content/`.
 
+## 10. Languages module (Stage 10)
+
+Languages live alongside regions and are managed under **Regional Content, Languages**. Each language has a slug (ISO 639-1 where possible: `en`, `fr`, `ja`, `zh-hant`), a display name in native script (`English`, `Français`, `日本語`), and an ISO 3166-1 alpha-2 country code used to render its flag (`gb`, `fr`, `jp`).
+
+Use **Import from Library** for one-click adding from a starter list of ~40 common world languages, or **Add Language** to create one manually. Drag rows to reorder; the order controls the front-end Language Selector dropdown order added in Stage 11.
+
+**Default Language** lives on the General tab and falls in last when no other detection step matches. **Per-region Default Language** lives on each region's edit form and is consulted when a visitor's region is auto-detected before the configured default is reached.
+
+### Detection priority on first visit
+
+1. **`?lang=` URL override** (gated by the same Test Override Mode setting as `?region=` — admins-only by default).
+2. **Existing `kdna_language` cookie.**
+3. **Browser language** matched against configured slugs via `navigator.languages`. Regional variants normalise (`en-AU` → `en` when `en-AU` not configured).
+4. **The visitor's auto-detected region's mapped Default Language.**
+5. **Configured Default Language** fallback.
+
+The AJAX endpoint `kdna_rc_set_language` (called by the Language Selector widget in Stage 11) commits a chosen slug into the cookie. The anti-flicker pending state is now released only once both region **and** language have resolved, so cached pages with mixed regional + language content do not flash the wrong language.
+
+### flag-icons library
+
+Flags are rendered via the [flag-icons](https://github.com/lipis/flag-icons) library (v7.5.0, MIT licensed) bundled in `lib/flag-icons/`. Usage is `<span class="fi fi-{country-code}"></span>`. The CSS file is enqueued on the plugin admin pages and on every front-end page (the asset is small — under 70 KB minified — and the SVG flags are loaded lazily by the browser only when the corresponding class appears in the DOM, so the always-on enqueue keeps the Stage 11 Language Selector widget zero-config).
+
+The square `.fis` variant requires the 1×1 SVG set, which is intentionally not bundled to keep the package small. Use the default rectangular `.fi` class.
+
 ## Build status
 
 See `../PROJECT-BRIEF.md` for the full build status table and stage descriptions.

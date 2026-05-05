@@ -153,6 +153,47 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'Test Language Detection', 'kdna-regional-content' ); ?></h2>
+	<p><?php echo esc_html__( 'Probe the four-step language detection chain with a fake browser Accept-Language header. Useful for confirming priority order without leaving wp-admin.', 'kdna-regional-content' ); ?></p>
+
+	<div class="kdna-rc-test-language">
+		<p>
+			<label for="kdna-rc-test-accept-language" class="screen-reader-text"><?php echo esc_html__( 'Accept-Language header', 'kdna-regional-content' ); ?></label>
+			<input type="text" id="kdna-rc-test-accept-language" class="regular-text code" placeholder="<?php echo esc_attr__( 'e.g. fr-FR,fr;q=0.9,en;q=0.8', 'kdna-regional-content' ); ?>" />
+		</p>
+		<?php
+		$languages_for_test = ( new KDNA_RC_Languages() )->get_all();
+		$regions_for_test   = ( new KDNA_RC_Regions() )->get_all();
+		?>
+		<p>
+			<label for="kdna-rc-test-lang-override"><?php echo esc_html__( '?lang= override', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-test-lang-override">
+				<option value=""><?php echo esc_html__( 'None', 'kdna-regional-content' ); ?></option>
+				<?php foreach ( $languages_for_test as $language ) : ?>
+					<option value="<?php echo esc_attr( $language['slug'] ); ?>"><?php echo esc_html( $language['name'] ); ?></option>
+				<?php endforeach; ?>
+			</select>
+
+			<label for="kdna-rc-test-region" style="margin-left:1em;"><?php echo esc_html__( 'Pretend region', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-test-region">
+				<option value=""><?php echo esc_html__( 'None', 'kdna-regional-content' ); ?></option>
+				<?php foreach ( $regions_for_test as $region ) : ?>
+					<option value="<?php echo esc_attr( $region['slug'] ); ?>"><?php echo esc_html( $region['name'] ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</p>
+		<p>
+			<label><input type="checkbox" id="kdna-rc-test-first-visit" /> <?php echo esc_html__( 'Simulate first visit (skip cookie reuse)', 'kdna-regional-content' ); ?></label>
+		</p>
+		<p>
+			<button type="button" class="button" id="kdna-rc-test-language-detect"><?php echo esc_html__( 'Test', 'kdna-regional-content' ); ?></button>
+			<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		</p>
+		<div class="kdna-rc-test-language-result" aria-live="polite"></div>
+	</div>
+
+	<hr />
+
 	<h2><?php echo esc_html__( 'Clear Caches', 'kdna-regional-content' ); ?></h2>
 	<p>
 		<?php

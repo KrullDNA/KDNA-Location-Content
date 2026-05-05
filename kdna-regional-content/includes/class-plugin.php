@@ -150,11 +150,22 @@ final class KDNA_RC_Plugin {
 			$this->regions->init();
 		}
 
+		// Stage 10: Languages handler. Same instantiate-everywhere pattern as
+		// Regions; AJAX registered only inside admin.
+		$languages = new KDNA_RC_Languages();
+		if ( is_admin() ) {
+			$languages->init();
+		}
+
 		// Visitor detection. init() registers public AJAX (priv + nopriv),
 		// the early ?region= override handler, and the wp_head inline
 		// configuration printer. Safe to run in every context.
 		$this->detector = new KDNA_RC_Detector();
 		$this->detector->init();
+
+		// Stage 10 language detection. Public AJAX (priv + nopriv) for the
+		// Language Selector widget plus the early ?lang= override handler.
+		( new KDNA_RC_Language_Detector() )->init();
 
 		// Stage 5 visibility layer. Each handler is harmless when its
 		// integration target is missing (Elementor, JetEngine), so they
@@ -177,6 +188,12 @@ final class KDNA_RC_Plugin {
 		// outside wp-admin.
 		( new KDNA_RC_Cache_Integration() )->init();
 		( new KDNA_RC_Admin_Notices() )->init();
+
+		// Stage 11: register the kdna-widgets Elementor category and the
+		// Language Selector widget. Hooks are guarded with class_exists so
+		// the registration is silently skipped on Elementor-less sites.
+		add_action( 'elementor/elements/categories_registered', array( $this, 'register_elementor_category' ) );
+		add_action( 'elementor/widgets/register', array( $this, 'register_elementor_widgets' ) );
 
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
@@ -279,6 +296,48 @@ final class KDNA_RC_Plugin {
 		unset( $option, $value );
 		if ( $this->database_updater ) {
 			$this->database_updater->reconcile_cron_schedule();
+		}
+	}
+
+	/**
+	 * Stage 11: register the kdna-widgets category in the Elementor panel.
+	 *
+	 * Adds the category if it does not already exist; if a downstream
+	 * project plugin registered the same slug first we keep that one and
+	 * just slot our widget under it.
+	 *
+	 * @param mixed $elements_manager Elementor elements manager.
+	 * @return void
+	 */
+	public function register_elementor_category( $elements_manager ) {
+		if ( ! is_object( $elements_manager ) || ! method_exists( $elements_manager, 'add_category' ) ) {
+			return;
+		}
+
+		$elements_manager->add_category(
+			'kdna-widgets',
+			array(
+				'title' => __( 'KDNA Widgets', 'kdna-regional-content' ),
+				'icon'  => 'eicon-globe',
+			)
+		);
+	}
+
+	/**
+	 * Stage 11: register Elementor widgets shipped by this plugin.
+	 *
+	 * @param mixed $widgets_manager Elementor widgets manager.
+	 * @return void
+	 */
+	public function register_elementor_widgets( $widgets_manager ) {
+		if ( ! is_object( $widgets_manager ) || ! method_exists( $widgets_manager, 'register' ) ) {
+			return;
+		}
+		if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) {
+			return;
+		}
+		if ( class_exists( 'KDNA_RC_Language_Selector_Widget' ) ) {
+			$widgets_manager->register( new KDNA_RC_Language_Selector_Widget() );
 		}
 	}
 }

@@ -170,13 +170,19 @@
 			.map( function ( c ) { return c.trim().toUpperCase(); } )
 			.filter( Boolean );
 
+		// Stage 10: per-region default language. The select is only present
+		// when at least one language is configured; default to '' so the
+		// payload shape stays predictable on language-less sites.
+		var $defaultLang = $editor.find( '.kdna-rc-input-default-language' );
+
 		return {
-			name:      $editor.find( '.kdna-rc-input-name' ).val().trim(),
-			slug:      $editor.find( '.kdna-rc-input-slug' ).val().trim(),
-			type:      $editor.find( '.kdna-rc-input-type:checked' ).val() || 'single',
-			countries: selected,
-			language:  $editor.find( '.kdna-rc-input-language' ).val().trim(),
-			direction: $editor.find( '.kdna-rc-input-direction:checked' ).val() || 'ltr'
+			name:             $editor.find( '.kdna-rc-input-name' ).val().trim(),
+			slug:             $editor.find( '.kdna-rc-input-slug' ).val().trim(),
+			type:             $editor.find( '.kdna-rc-input-type:checked' ).val() || 'single',
+			countries:        selected,
+			language:         $editor.find( '.kdna-rc-input-language' ).val().trim(),
+			direction:        $editor.find( '.kdna-rc-input-direction:checked' ).val() || 'ltr',
+			default_language: $defaultLang.length ? ( $defaultLang.val() || '' ) : ''
 		};
 	}
 
@@ -609,10 +615,408 @@
 		} );
 	}
 
+	// =====================================================================
+	// Languages tab : list, drag-reorder, inline edit, import library
+	// =====================================================================
+
+	function bindLanguagesTab() {
+		var $list = $( '#kdna-rc-language-list' );
+		if ( ! $list.length ) {
+			return;
+		}
+
+		// Drag to reorder.
+		$list.sortable( {
+			handle: '.kdna-rc-handle',
+			items: '> li.kdna-rc-language',
+			axis: 'y',
+			placeholder: 'kdna-rc-region-placeholder',
+			forcePlaceholderSize: true,
+			update: function () {
+				var slugs = [];
+				$list.children( 'li.kdna-rc-language' ).each( function () {
+					var slug = $( this ).attr( 'data-slug' );
+					if ( slug ) {
+						slugs.push( slug );
+					}
+				} );
+				if ( ! slugs.length ) {
+					return;
+				}
+				$.ajax( {
+					url: config.ajaxUrl,
+					method: 'POST',
+					dataType: 'json',
+					data: {
+						action: config.actions.reorderLanguages,
+						nonce: config.nonce,
+						slugs: slugs
+					}
+				} );
+			}
+		} );
+
+		function updateRowSummary( $row, payload ) {
+			var $name = $row.find( '.kdna-rc-region-name' );
+			var $slug = $row.find( '.kdna-rc-region-slug' );
+			$name.text( payload.name || config.i18n.untitledLanguage );
+			$slug.text( payload.slug || '' );
+
+			var $cell = $row.find( '.kdna-rc-flag-cell' );
+			$cell.empty();
+			if ( payload.flag ) {
+				var span = document.createElement( 'span' );
+				span.className = 'fi fi-' + payload.flag + ' kdna-rc-flag-display';
+				span.setAttribute( 'aria-hidden', 'true' );
+				$cell.append( span );
+			}
+		}
+
+		function getEditorPayload( $editor ) {
+			return {
+				name: $editor.find( '.kdna-rc-input-name' ).val().trim(),
+				slug: $editor.find( '.kdna-rc-input-slug' ).val().trim(),
+				flag: ( $editor.find( '.kdna-rc-input-flag' ).val() || '' ).trim().toLowerCase()
+			};
+		}
+
+		function showFormMessage( $editor, message, isError ) {
+			$editor.find( '.kdna-rc-form-message' )
+				.removeClass( 'kdna-rc-msg-ok kdna-rc-msg-error' )
+				.addClass( isError ? 'kdna-rc-msg-error' : 'kdna-rc-msg-ok' )
+				.text( message );
+		}
+
+		function setEditorBusy( $editor, busy ) {
+			$editor.find( '.kdna-rc-spinner' ).toggleClass( 'is-active', !! busy );
+			$editor.find( '.kdna-rc-save, .kdna-rc-cancel' ).prop( 'disabled', !! busy );
+		}
+
+		function openEditor( $row ) {
+			$( '.kdna-rc-language.is-editing' ).not( $row ).each( function () {
+				closeEditor( $( this ), false );
+			} );
+			$row.addClass( 'is-editing' );
+			$row.find( '.kdna-rc-region-editor' ).prop( 'hidden', false );
+		}
+
+		function closeEditor( $row, removeIfNew ) {
+			$row.removeClass( 'is-editing' );
+			$row.find( '.kdna-rc-region-editor' ).prop( 'hidden', true );
+			if ( removeIfNew && $row.hasClass( 'is-new' ) ) {
+				$row.remove();
+			}
+		}
+
+		// Add Language: clone the empty template.
+		$( '.kdna-rc-add-language' ).on( 'click', function ( event ) {
+			event.preventDefault();
+			var template = document.getElementById( 'kdna-rc-language-template' );
+			if ( ! template || ! template.content ) {
+				return;
+			}
+			var $clone = $( template.content.firstElementChild.cloneNode( true ) );
+			$clone.addClass( 'is-new' );
+			$clone.find( '.kdna-rc-region-name' ).text( config.i18n.newLanguage );
+			$list.append( $clone );
+			$( '.kdna-rc-languages .kdna-rc-empty' ).hide();
+			openEditor( $clone );
+			$clone.find( '.kdna-rc-input-name' ).trigger( 'focus' );
+		} );
+
+		// Delegated handlers.
+		$list.on( 'click', '.kdna-rc-edit', function ( event ) {
+			event.preventDefault();
+			openEditor( $( this ).closest( '.kdna-rc-language' ) );
+		} );
+
+		$list.on( 'click', '.kdna-rc-cancel', function ( event ) {
+			event.preventDefault();
+			closeEditor( $( this ).closest( '.kdna-rc-language' ), true );
+		} );
+
+		$list.on( 'click', '.kdna-rc-delete', function ( event ) {
+			event.preventDefault();
+			var $row = $( this ).closest( '.kdna-rc-language' );
+			var slug = $row.attr( 'data-slug' );
+			var msg  = $( this ).attr( 'data-confirm' ) || 'Delete?';
+
+			if ( ! slug ) {
+				$row.remove();
+				return;
+			}
+			if ( ! window.confirm( msg ) ) { // eslint-disable-line no-alert
+				return;
+			}
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.deleteLanguage,
+					nonce: config.nonce,
+					slug: slug
+				}
+			} ).done( function ( response ) {
+				if ( response && response.success ) {
+					$row.fadeOut( 150, function () { $row.remove(); } );
+				}
+			} );
+		} );
+
+		// Auto-generate slug from name until manually touched.
+		$list.on( 'input', '.kdna-rc-input-name', function () {
+			var $editor = $( this ).closest( '.kdna-rc-region-editor' );
+			var $slug   = $editor.find( '.kdna-rc-input-slug' );
+			if ( $slug.data( 'manual' ) ) {
+				return;
+			}
+			$slug.val( slugify( $( this ).val() ) );
+		} );
+		$list.on( 'input', '.kdna-rc-input-slug', function () {
+			$( this ).data( 'manual', true );
+		} );
+
+		// Live flag preview as the country code is typed.
+		$list.on( 'input', '.kdna-rc-input-flag', function () {
+			var $preview = $( this ).closest( '.kdna-rc-flag-input-row' ).find( '.kdna-rc-flag-preview' );
+			var code = ( $( this ).val() || '' ).trim().toLowerCase();
+			$preview.attr( 'class', 'kdna-rc-flag-preview' );
+			if ( /^[a-z]{2}$/.test( code ) ) {
+				$preview.addClass( 'fi fi-' + code );
+			}
+		} );
+
+		// Save.
+		$list.on( 'click', '.kdna-rc-save', function ( event ) {
+			event.preventDefault();
+			var $row     = $( this ).closest( '.kdna-rc-language' );
+			var $editor  = $row.find( '.kdna-rc-region-editor' );
+			var payload  = getEditorPayload( $editor );
+			var original = $row.attr( 'data-slug' ) || '';
+
+			showFormMessage( $editor, '', false );
+			setEditorBusy( $editor, true );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.saveLanguage,
+					nonce: config.nonce,
+					language: payload,
+					original_slug: original
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success && response.data && response.data.language ) {
+						var saved = response.data.language;
+						$row.removeClass( 'is-new' ).attr( 'data-slug', saved.slug );
+						$row.find( '.kdna-rc-input-slug' ).val( saved.slug ).data( 'manual', false );
+						updateRowSummary( $row, saved );
+						showFormMessage( $editor, response.data.message || config.i18n.languageSaved, false );
+						setTimeout( function () {
+							closeEditor( $row, false );
+						}, 600 );
+					} else {
+						var err = ( response && response.data && response.data.message ) || config.i18n.failure;
+						showFormMessage( $editor, err, true );
+					}
+				} )
+				.fail( function ( jqXHR ) {
+					var msg = config.i18n.network;
+					if ( jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message ) {
+						msg = jqXHR.responseJSON.data.message;
+					}
+					showFormMessage( $editor, msg, true );
+				} )
+				.always( function () {
+					setEditorBusy( $editor, false );
+				} );
+		} );
+
+		// Library import modal.
+		var $modal = $( '#kdna-rc-language-library-modal' );
+		var $libList = $modal.find( '.kdna-rc-library-list' );
+
+		function closeModal() {
+			$modal.prop( 'hidden', true );
+		}
+		function openModal() {
+			$modal.prop( 'hidden', false );
+			$modal.find( '.kdna-rc-library-search' ).val( '' ).trigger( 'input' ).trigger( 'focus' );
+		}
+
+		$( '.kdna-rc-import-language' ).on( 'click', function ( event ) {
+			event.preventDefault();
+			openModal();
+		} );
+
+		$modal.on( 'click', '.kdna-rc-modal-close', function ( event ) {
+			event.preventDefault();
+			closeModal();
+		} );
+		$modal.on( 'click', function ( event ) {
+			if ( event.target === $modal[ 0 ] ) {
+				closeModal();
+			}
+		} );
+
+		$libList.on( 'input', '.kdna-rc-library-search', function () {
+			var q = ( $( this ).val() || '' ).toLowerCase();
+			$libList.find( '.kdna-rc-library-item' ).each( function () {
+				var name = ( $( this ).attr( 'data-name' ) || '' ).toLowerCase();
+				var slug = ( $( this ).attr( 'data-slug' ) || '' ).toLowerCase();
+				$( this ).toggle( q === '' || name.indexOf( q ) !== -1 || slug.indexOf( q ) !== -1 );
+			} );
+		} );
+		// Bind search on the input itself (it lives outside the list).
+		$modal.find( '.kdna-rc-library-search' ).on( 'input', function () {
+			var q = ( $( this ).val() || '' ).toLowerCase();
+			$libList.find( '.kdna-rc-library-item' ).each( function () {
+				var name = ( $( this ).attr( 'data-name' ) || '' ).toLowerCase();
+				var slug = ( $( this ).attr( 'data-slug' ) || '' ).toLowerCase();
+				$( this ).toggle( q === '' || name.indexOf( q ) !== -1 || slug.indexOf( q ) !== -1 );
+			} );
+		} );
+
+		// One-click add from library: posts a save with the library values.
+		$libList.on( 'click', '.kdna-rc-library-add', function ( event ) {
+			event.preventDefault();
+			var $item = $( this ).closest( '.kdna-rc-library-item' );
+			var payload = {
+				slug: $item.attr( 'data-slug' ) || '',
+				name: $item.attr( 'data-name' ) || '',
+				flag: $item.attr( 'data-flag' ) || ''
+			};
+
+			var $btn = $( this ).prop( 'disabled', true );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.saveLanguage,
+					nonce: config.nonce,
+					language: payload,
+					original_slug: ''
+				}
+			} ).done( function ( response ) {
+				if ( response && response.success && response.data && response.data.language ) {
+					var template = document.getElementById( 'kdna-rc-language-template' );
+					if ( template && template.content ) {
+						var $clone = $( template.content.firstElementChild.cloneNode( true ) );
+						$clone.attr( 'data-slug', response.data.language.slug );
+						updateRowSummary( $clone, response.data.language );
+						$list.append( $clone );
+						$( '.kdna-rc-languages .kdna-rc-empty' ).hide();
+					}
+					closeModal();
+				} else {
+					var err = ( response && response.data && response.data.message ) || config.i18n.failure;
+					window.alert( err ); // eslint-disable-line no-alert
+				}
+			} ).always( function () {
+				$btn.prop( 'disabled', false );
+			} );
+		} );
+
+		// Esc to close.
+		$( document ).on( 'keydown', function ( event ) {
+			if ( event.key === 'Escape' && $modal.is( ':visible' ) ) {
+				closeModal();
+			}
+		} );
+	}
+
+	// =====================================================================
+	// Tools tab : Test Language Detection
+	// =====================================================================
+
+	function bindTestLanguageDetection() {
+		var $button = $( '#kdna-rc-test-language-detect' );
+		if ( ! $button.length ) {
+			return;
+		}
+		var $accept    = $( '#kdna-rc-test-accept-language' );
+		var $override  = $( '#kdna-rc-test-lang-override' );
+		var $region    = $( '#kdna-rc-test-region' );
+		var $firstVisit = $( '#kdna-rc-test-first-visit' );
+		var $result    = $( '.kdna-rc-test-language-result' );
+		var $spinner   = $button.parent().find( '.kdna-rc-spinner' );
+
+		function escapeHtml( str ) {
+			return String( str ).replace( /[&<>"']/g, function ( c ) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ c ];
+			} );
+		}
+
+		$button.on( 'click', function ( event ) {
+			event.preventDefault();
+
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>' + escapeHtml( config.i18n.testDetecting || 'Looking up...' ) + '</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.testLangDetection,
+					nonce: config.nonce,
+					accept_language: $accept.val(),
+					override: $override.val(),
+					region: $region.val(),
+					first_visit: $firstVisit.is( ':checked' ) ? 1 : 0
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						var data = response.data || {};
+						var resolved = data.slug
+							? '<strong>' + escapeHtml( data.name || data.slug ) + '</strong> (<code>' + escapeHtml( data.slug ) + '</code>)'
+							: '<em>None</em>';
+						var html = '<table class="widefat striped" style="max-width:540px;"><tbody>' +
+							'<tr><th>Resolved language</th><td>' + resolved + '</td></tr>' +
+							'<tr><th>Source</th><td><code>' + escapeHtml( data.source || 'unknown' ) + '</code></td></tr>';
+						if ( data.steps ) {
+							html += '<tr><th colspan="2">Step results</th></tr>';
+							for ( var key in data.steps ) {
+								if ( Object.prototype.hasOwnProperty.call( data.steps, key ) ) {
+									html += '<tr><th>' + escapeHtml( key ) + '</th><td>' + escapeHtml( data.steps[ key ] ) + '</td></tr>';
+								}
+							}
+						}
+						html += '</tbody></table>';
+						$result.html( html );
+					} else {
+						var err = ( response && response.data && response.data.message ) || config.i18n.failure;
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( err ) + '</p>' );
+					}
+				} )
+				.fail( function ( jqXHR ) {
+					var msg = config.i18n.network;
+					if ( jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message ) {
+						msg = jqXHR.responseJSON.data.message;
+					}
+					$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( msg ) + '</p>' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
+
 	$( function () {
 		bindUpdateDatabaseButton();
 		bindRegionsTab();
 		bindTestDetection();
 		bindClearCaches();
+		bindLanguagesTab();
+		bindTestLanguageDetection();
 	} );
 } )( jQuery );

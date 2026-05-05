@@ -439,12 +439,13 @@ class KDNA_RC_Regions {
 	 */
 	private function normalise_for_read( array $region ) {
 		return array(
-			'slug'      => isset( $region['slug'] ) ? (string) $region['slug'] : '',
-			'name'      => isset( $region['name'] ) ? (string) $region['name'] : '',
-			'type'      => ( isset( $region['type'] ) && 'group' === $region['type'] ) ? 'group' : 'single',
-			'countries' => isset( $region['countries'] ) && is_array( $region['countries'] ) ? array_values( array_filter( array_map( 'strtoupper', $region['countries'] ) ) ) : array(),
-			'language'  => isset( $region['language'] ) ? (string) $region['language'] : '',
-			'direction' => ( isset( $region['direction'] ) && 'rtl' === $region['direction'] ) ? 'rtl' : 'ltr',
+			'slug'             => isset( $region['slug'] ) ? (string) $region['slug'] : '',
+			'name'             => isset( $region['name'] ) ? (string) $region['name'] : '',
+			'type'             => ( isset( $region['type'] ) && 'group' === $region['type'] ) ? 'group' : 'single',
+			'countries'        => isset( $region['countries'] ) && is_array( $region['countries'] ) ? array_values( array_filter( array_map( 'strtoupper', $region['countries'] ) ) ) : array(),
+			'language'         => isset( $region['language'] ) ? (string) $region['language'] : '',
+			'direction'        => ( isset( $region['direction'] ) && 'rtl' === $region['direction'] ) ? 'rtl' : 'ltr',
+			'default_language' => isset( $region['default_language'] ) ? (string) $region['default_language'] : '',
 		);
 	}
 
@@ -496,13 +497,29 @@ class KDNA_RC_Regions {
 			$slug = $this->generate_unique_slug( $name, isset( $input['original_slug'] ) ? (string) $input['original_slug'] : '' );
 		}
 
+		// Stage 10: optional Default Language slug per region. Only persisted
+		// when it points at a configured language; unknown values fall back
+		// to the empty string so deleted languages do not linger as stale
+		// pointers.
+		$default_language = '';
+		if ( isset( $input['default_language'] ) ) {
+			$candidate = sanitize_key( (string) $input['default_language'] );
+			if ( '' !== $candidate && class_exists( 'KDNA_RC_Languages' ) ) {
+				$languages_handler = new KDNA_RC_Languages();
+				if ( null !== $languages_handler->get( $candidate ) ) {
+					$default_language = $candidate;
+				}
+			}
+		}
+
 		return array(
-			'slug'      => $slug,
-			'name'      => $name,
-			'type'      => $type,
-			'countries' => $countries,
-			'language'  => $this->sanitise_language_tag( $language ),
-			'direction' => $direction,
+			'slug'             => $slug,
+			'name'             => $name,
+			'type'             => $type,
+			'countries'        => $countries,
+			'language'         => $this->sanitise_language_tag( $language ),
+			'direction'        => $direction,
+			'default_language' => $default_language,
 		);
 	}
 

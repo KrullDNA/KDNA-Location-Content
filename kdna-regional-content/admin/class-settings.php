@@ -45,9 +45,10 @@ class KDNA_RC_Settings {
 	 */
 	public function init() {
 		$this->tabs = array(
-			'general' => __( 'General', 'kdna-regional-content' ),
-			'regions' => __( 'Regions', 'kdna-regional-content' ),
-			'tools'   => __( 'Tools', 'kdna-regional-content' ),
+			'general'   => __( 'General', 'kdna-regional-content' ),
+			'regions'   => __( 'Regions', 'kdna-regional-content' ),
+			'languages' => __( 'Languages', 'kdna-regional-content' ),
+			'tools'     => __( 'Tools', 'kdna-regional-content' ),
 		);
 
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
@@ -212,6 +213,24 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_delete_on_uninstall' )
 		);
 
+		// Stage 10: Default Language fallback. Appended to the General tab
+		// at the bottom so existing fields keep their order.
+		add_settings_section(
+			'kdna_rc_section_languages_general',
+			__( 'Language Behaviour', 'kdna-regional-content' ),
+			array( $this, 'render_section_languages_general' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'default_language',
+			__( 'Default Language', 'kdna-regional-content' ),
+			array( $this, 'render_field_default_language' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_languages_general',
+			array( 'label_for' => 'kdna_rc_default_language' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -338,6 +357,17 @@ class KDNA_RC_Settings {
 		// checkbox saves cleanly as false instead of being ignored.
 		if ( array_key_exists( 'delete_on_uninstall_present', $input ) ) {
 			$clean['delete_on_uninstall'] = ! empty( $input['delete_on_uninstall'] );
+		}
+
+		// Stage 10 default language. Accepts the empty string (no default)
+		// or a slug that maps to a configured language; stale values are
+		// dropped so admin UIs never display a missing slug.
+		if ( array_key_exists( 'default_language', $input ) ) {
+			$value             = sanitize_key( wp_unslash( $input['default_language'] ) );
+			$languages_handler = new KDNA_RC_Languages();
+			if ( '' === $value || null !== $languages_handler->get( $value ) ) {
+				$clean['default_language'] = $value;
+			}
 		}
 
 		return $clean;
@@ -615,6 +645,55 @@ class KDNA_RC_Settings {
 	}
 
 	/**
+	 * Render the introductory copy for the language behaviour section.
+	 *
+	 * @return void
+	 */
+	public function render_section_languages_general() {
+		echo '<p>' . esc_html__( 'Pick the fallback language used when the visitor browser does not advertise a configured language and their region does not specify one. Manage the languages list under the Languages tab.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Default Language dropdown.
+	 *
+	 * @return void
+	 */
+	public function render_field_default_language() {
+		$settings  = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current   = isset( $settings['default_language'] ) ? (string) $settings['default_language'] : '';
+		$languages = ( new KDNA_RC_Languages() )->get_all();
+
+		echo '<select id="kdna_rc_default_language" name="' . esc_attr( KDNA_RC_OPTION_SETTINGS ) . '[default_language]">';
+		echo '<option value=""' . selected( '', $current, false ) . '>' . esc_html__( 'No default language', 'kdna-regional-content' ) . '</option>';
+		foreach ( $languages as $language ) {
+			printf(
+				'<option value="%1$s"%2$s>%3$s</option>',
+				esc_attr( $language['slug'] ),
+				selected( $current, $language['slug'], false ),
+				esc_html( $language['name'] )
+			);
+		}
+		echo '</select>';
+
+		if ( empty( $languages ) ) {
+			$url = add_query_arg(
+				array(
+					'page' => self::PAGE_SLUG,
+					'tab'  => 'languages',
+				),
+				admin_url( 'admin.php' )
+			);
+			echo '<p class="description">';
+			printf(
+				/* translators: %s: link to the Languages tab. */
+				esc_html__( 'No languages yet. Add some on the %s.', 'kdna-regional-content' ),
+				'<a href="' . esc_url( $url ) . '">' . esc_html__( 'Languages tab', 'kdna-regional-content' ) . '</a>'
+			);
+			echo '</p>';
+		}
+	}
+
+	/**
 	 * Render the introductory copy for the auto-update schedule section.
 	 *
 	 * @return void
@@ -665,9 +744,16 @@ class KDNA_RC_Settings {
 		}
 
 		wp_enqueue_style(
+			'kdna-rc-flag-icons',
+			KDNA_RC_PLUGIN_URL . 'lib/flag-icons/css/flag-icons.min.css',
+			array(),
+			'7.5.0'
+		);
+
+		wp_enqueue_style(
 			'kdna-rc-admin',
 			KDNA_RC_PLUGIN_URL . 'admin/admin-style.css',
-			array(),
+			array( 'kdna-rc-flag-icons' ),
 			KDNA_RC_VERSION
 		);
 
@@ -695,12 +781,16 @@ class KDNA_RC_Settings {
 				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
 				'nonce'     => wp_create_nonce( 'kdna_rc_admin' ),
 				'actions'   => array(
-					'updateDatabase' => KDNA_RC_Database_Updater::AJAX_ACTION,
-					'saveRegion'     => KDNA_RC_Regions::AJAX_SAVE,
-					'deleteRegion'   => KDNA_RC_Regions::AJAX_DELETE,
-					'reorderRegions' => KDNA_RC_Regions::AJAX_REORDER,
-					'testDetection'  => KDNA_RC_Detector::AJAX_TEST_ACTION,
-					'clearCaches'    => KDNA_RC_Cache_Integration::AJAX_CLEAR,
+					'updateDatabase'     => KDNA_RC_Database_Updater::AJAX_ACTION,
+					'saveRegion'         => KDNA_RC_Regions::AJAX_SAVE,
+					'deleteRegion'       => KDNA_RC_Regions::AJAX_DELETE,
+					'reorderRegions'     => KDNA_RC_Regions::AJAX_REORDER,
+					'testDetection'      => KDNA_RC_Detector::AJAX_TEST_ACTION,
+					'clearCaches'        => KDNA_RC_Cache_Integration::AJAX_CLEAR,
+					'saveLanguage'       => KDNA_RC_Languages::AJAX_SAVE,
+					'deleteLanguage'     => KDNA_RC_Languages::AJAX_DELETE,
+					'reorderLanguages'   => KDNA_RC_Languages::AJAX_REORDER,
+					'testLangDetection'  => KDNA_RC_Language_Detector::AJAX_TEST_ACTION,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
@@ -725,6 +815,12 @@ class KDNA_RC_Settings {
 					'testNoCountry'   => __( 'GeoIP could not resolve this IP. Make sure the database is up to date.', 'kdna-regional-content' ),
 					'clearing'        => __( 'Clearing caches...', 'kdna-regional-content' ),
 					'cleared'         => __( 'Caches cleared.', 'kdna-regional-content' ),
+					'newLanguage'     => __( 'New language', 'kdna-regional-content' ),
+					'untitledLanguage' => __( 'Untitled language', 'kdna-regional-content' ),
+					'savingLanguage'  => __( 'Saving...', 'kdna-regional-content' ),
+					'languageSaved'   => __( 'Language saved.', 'kdna-regional-content' ),
+					'languageDeleted' => __( 'Language deleted.', 'kdna-regional-content' ),
+					'libraryNoResults' => __( 'No matching languages.', 'kdna-regional-content' ),
 				),
 			)
 		);

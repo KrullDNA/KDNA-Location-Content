@@ -106,6 +106,11 @@ function kdna_rc_activate() {
 		add_option( KDNA_RC_Regions::OPTION_KEY, array() );
 	}
 
+	// Seed the languages option (Stage 10) for the same reason.
+	if ( false === get_option( KDNA_RC_Languages::OPTION_KEY ) ) {
+		add_option( KDNA_RC_Languages::OPTION_KEY, array() );
+	}
+
 	// Schedule the auto-update cron event. init() registers the custom
 	// monthly schedule filter so wp_schedule_event() can resolve the slug
 	// during the activation request (plugins_loaded does not fire here).
