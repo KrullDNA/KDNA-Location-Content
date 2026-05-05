@@ -23,11 +23,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class KDNA_RC_Icon_List_Extension {
 
 	/**
-	 * Repeater field name on each Icon List item.
+	 * Repeater field name on each Icon List item (regions).
 	 *
 	 * @var string
 	 */
 	const FIELD_NAME = 'kdna_rc_show_in';
+
+	/**
+	 * Stage 11: Repeater field name on each Icon List item (languages).
+	 *
+	 * @var string
+	 */
+	const FIELD_LANG_NAME = 'kdna_rc_show_in_languages';
 
 	/**
 	 * Wire up Elementor hooks once the page builder is available.
@@ -72,39 +79,65 @@ class KDNA_RC_Icon_List_Extension {
 			return;
 		}
 
-		$fields = $control['fields'];
+		$fields  = $control['fields'];
+		$has_reg = false;
+		$has_lng = false;
 		foreach ( $fields as $field ) {
 			$name = is_array( $field ) && isset( $field['name'] ) ? $field['name'] : '';
 			if ( self::FIELD_NAME === $name ) {
-				return; // Already added.
+				$has_reg = true;
+			}
+			if ( self::FIELD_LANG_NAME === $name ) {
+				$has_lng = true;
 			}
 		}
 
-		$regions = ( new KDNA_RC_Regions() )->get_all();
-		if ( empty( $regions ) ) {
-			return;
+		$regions   = ( new KDNA_RC_Regions() )->get_all();
+		$languages = ( new KDNA_RC_Languages() )->get_all();
+		$dirty     = false;
+
+		if ( ! $has_reg && ! empty( $regions ) ) {
+			$options = array();
+			foreach ( $regions as $region ) {
+				$options[ $region['slug'] ] = $region['name'];
+			}
+			$fields[] = array(
+				'name'        => self::FIELD_NAME,
+				'label'       => __( 'Show in Regions', 'kdna-regional-content' ),
+				'type'        => defined( 'Elementor\\Controls_Manager::SELECT2' ) ? \Elementor\Controls_Manager::SELECT2 : 'select2',
+				'multiple'    => true,
+				'options'     => $options,
+				'default'     => array(),
+				'label_block' => true,
+				'description' => __( 'Leave blank to show this item in all regions.', 'kdna-regional-content' ),
+			);
+			$dirty = true;
 		}
 
-		$options = array();
-		foreach ( $regions as $region ) {
-			$options[ $region['slug'] ] = $region['name'];
+		if ( ! $has_lng && ! empty( $languages ) ) {
+			$options = array();
+			foreach ( $languages as $language ) {
+				$options[ $language['slug'] ] = $language['name'];
+			}
+			$fields[] = array(
+				'name'        => self::FIELD_LANG_NAME,
+				'label'       => __( 'Restrict to Languages', 'kdna-regional-content' ),
+				'type'        => defined( 'Elementor\\Controls_Manager::SELECT2' ) ? \Elementor\Controls_Manager::SELECT2 : 'select2',
+				'multiple'    => true,
+				'options'     => $options,
+				'default'     => array(),
+				'label_block' => true,
+				'description' => __( 'Leave blank to show this item in all languages.', 'kdna-regional-content' ),
+			);
+			$dirty = true;
 		}
 
-		$fields[] = array(
-			'name'        => self::FIELD_NAME,
-			'label'       => __( 'Show in Regions', 'kdna-regional-content' ),
-			'type'        => defined( 'Elementor\\Controls_Manager::SELECT2' ) ? \Elementor\Controls_Manager::SELECT2 : 'select2',
-			'multiple'    => true,
-			'options'     => $options,
-			'default'     => array(),
-			'label_block' => true,
-			'description' => __( 'Leave blank to show this item in all regions.', 'kdna-regional-content' ),
-		);
-
-		$element->update_control(
-			'icon_list',
-			array( 'fields' => $fields )
-		);
+		if ( $dirty ) {
+			$element->update_control(
+				'icon_list',
+				array( 'fields' => $fields )
+			);
+		}
 	}
 
 	/**
@@ -130,20 +163,29 @@ class KDNA_RC_Icon_List_Extension {
 			return $content;
 		}
 
-		// Index restrictions by item position so we can match against the Nth <li>.
-		$restrictions = array();
+		// Index restrictions by item position so we can match against the
+		// Nth <li>. Region and language restrictions are tracked separately
+		// because they map to different attributes the JS reads.
+		$region_restrictions   = array();
+		$language_restrictions = array();
 		foreach ( array_values( $items ) as $i => $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
-			$slugs = isset( $item[ self::FIELD_NAME ] ) ? (array) $item[ self::FIELD_NAME ] : array();
-			$slugs = array_values( array_filter( array_map( 'sanitize_key', $slugs ) ) );
-			if ( ! empty( $slugs ) ) {
-				$restrictions[ $i ] = $slugs;
+			$region_slugs = isset( $item[ self::FIELD_NAME ] ) ? (array) $item[ self::FIELD_NAME ] : array();
+			$region_slugs = array_values( array_filter( array_map( 'sanitize_key', $region_slugs ) ) );
+			if ( ! empty( $region_slugs ) ) {
+				$region_restrictions[ $i ] = $region_slugs;
+			}
+
+			$lang_slugs = isset( $item[ self::FIELD_LANG_NAME ] ) ? (array) $item[ self::FIELD_LANG_NAME ] : array();
+			$lang_slugs = array_values( array_filter( array_map( 'sanitize_key', $lang_slugs ) ) );
+			if ( ! empty( $lang_slugs ) ) {
+				$language_restrictions[ $i ] = $lang_slugs;
 			}
 		}
 
-		if ( empty( $restrictions ) ) {
+		if ( empty( $region_restrictions ) && empty( $language_restrictions ) ) {
 			return $content;
 		}
 
@@ -153,11 +195,16 @@ class KDNA_RC_Icon_List_Extension {
 		}
 
 		$lis = $root->getElementsByTagName( 'li' );
-		// Walk by item index against the rendered <li> nodes; ignore extras.
-		foreach ( $restrictions as $index => $slugs ) {
+		foreach ( $region_restrictions as $index => $slugs ) {
 			$node = $lis->item( $index );
 			if ( $node ) {
 				$node->setAttribute( 'data-kdna-show-in', implode( ',', $slugs ) );
+			}
+		}
+		foreach ( $language_restrictions as $index => $slugs ) {
+			$node = $lis->item( $index );
+			if ( $node ) {
+				$node->setAttribute( 'data-kdna-show-in-languages', implode( ',', $slugs ) );
 			}
 		}
 

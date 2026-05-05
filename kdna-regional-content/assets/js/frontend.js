@@ -220,26 +220,65 @@
 	// reveal the matching variant. If nothing matches the default stays
 	// visible. Cleared inline display so any variant style="display:none"
 	// is reset to its computed value.
-	function applyVariantSwap( region ) {
+	// Stage 11 precedence rule: when a wrapper holds both a language variant
+	// matching the visitor and a region variant matching the visitor, the
+	// language variant wins. Language variants are tagged with
+	// data-kdna-language; region variants with data-kdna-region. The default
+	// child carries data-kdna-region="default" and is the fallback when
+	// neither selector matches.
+	function applyVariantSwap( region, language ) {
 		var wrappers = document.querySelectorAll( '.kdna-rc-variant-wrapper' );
 		for ( var i = 0; i < wrappers.length; i++ ) {
 			var wrapper = wrappers[ i ];
 			var defaultNode = wrapper.querySelector( '.kdna-rc-variant.kdna-rc-default' );
 			var match = null;
-			if ( region ) {
+
+			// 1. Language variant wins.
+			if ( language ) {
+				match = wrapper.querySelector(
+					'.kdna-rc-variant[data-kdna-language="' + language.replace( /"/g, '\\"' ) + '"]:not(.kdna-rc-default)'
+				);
+			}
+
+			// 2. Region variant.
+			if ( ! match && region ) {
 				match = wrapper.querySelector(
 					'.kdna-rc-variant[data-kdna-region="' + region.replace( /"/g, '\\"' ) + '"]:not(.kdna-rc-default)'
 				);
 			}
+
+			// Hide every non-default sibling first so a previous live swap
+			// does not leak a stale match.
+			var siblings = wrapper.querySelectorAll( '.kdna-rc-variant:not(.kdna-rc-default)' );
+			for ( var j = 0; j < siblings.length; j++ ) {
+				siblings[ j ].style.display = 'none';
+			}
+
 			if ( match ) {
-				if ( defaultNode ) {
-					defaultNode.style.display = 'none';
-				}
+				if ( defaultNode ) { defaultNode.style.display = 'none'; }
 				match.style.display = '';
 			} else if ( defaultNode ) {
-				// Make sure the default is visible (it is by default, but a
-				// previous swap on the same page could have hidden it).
 				defaultNode.style.display = '';
+			}
+		}
+	}
+
+	// Stage 11 Icon List per-item language restriction. Reads
+	// data-kdna-show-in-languages on individual <li> nodes and hides those
+	// whose value does not include the visitor's language. Region
+	// restriction (data-kdna-show-in) keeps using the existing visibility
+	// filter pass; both can apply to the same element.
+	function applyLanguageVisibilityFilter( language ) {
+		var nodes = document.querySelectorAll( '[data-kdna-show-in-languages]' );
+		for ( var i = 0; i < nodes.length; i++ ) {
+			var node    = nodes[ i ];
+			var allowed = splitList( node.getAttribute( 'data-kdna-show-in-languages' ) );
+			if ( ! language || allowed.indexOf( language ) === -1 ) {
+				node.style.display = 'none';
+				node.setAttribute( 'data-kdna-rc-hidden-lang', '1' );
+			} else if ( node.getAttribute( 'data-kdna-rc-hidden-lang' ) === '1' ) {
+				node.style.display = '';
+				node.removeAttribute( 'data-kdna-rc-hidden-lang' );
 			}
 		}
 	}
@@ -248,6 +287,25 @@
 	// Stage 11 variant swap. Exposed on window for downstream code (the
 	// Language Selector widget will read it).
 	window.kdnaRCResolved = window.kdnaRCResolved || { region: null, language: null };
+
+	// Stage 11 live-swap entry point. Called by the Language Selector
+	// widget when the user picks a language and the widget is configured
+	// to do an in-page swap (no reload). Re-runs the variant pass and the
+	// per-item language visibility filter, then dispatches a custom DOM
+	// event so third-party scripts can react.
+	window.kdnaRCRefreshLanguage = function ( slug ) {
+		slug = String( slug || '' ).toLowerCase();
+		window.kdnaRCResolved.language = slug;
+		document.documentElement.setAttribute( 'data-kdna-language', slug );
+		applyVariantSwap( window.kdnaRCResolved.region || '', slug );
+		applyLanguageVisibilityFilter( slug );
+
+		try {
+			document.dispatchEvent( new CustomEvent( 'kdna-rc-language-changed', { detail: { slug: slug } } ) );
+		} catch ( err ) {
+			// IE: skip silently.
+		}
+	};
 
 	function clearPendingIfReady() {
 		var hasLanguages = cfg.languages && cfg.languages.length > 0;
@@ -269,7 +327,9 @@
 		debug( 'window.kdnaRCPostRegions =', window.kdnaRCPostRegions || {} );
 		hydratePostVisibility();
 		applyVisibilityFilter( region );
-		applyVariantSwap( region );
+		// Stage 11: pass the currently resolved language too so the variant
+		// swap honours the language-wins precedence rule from the start.
+		applyVariantSwap( region, window.kdnaRCResolved.language || '' );
 		applySinglePostPolicy( region );
 		window.kdnaRCResolved.region = region || '';
 		clearPendingIfReady();
@@ -440,6 +500,16 @@
 		debug( 'resolved language: "' + ( slug || '(empty)' ) + '" via ' + source + '.' );
 		window.kdnaRCResolved.language = slug;
 		document.documentElement.setAttribute( 'data-kdna-language', slug || '' );
+
+		// Stage 11: now that the language is known, re-run the variant swap
+		// so any wrapper carrying a language variant takes precedence over
+		// its region match, and apply the per-item Icon List language
+		// filter. Region resolution may have run before this point with an
+		// empty language, so this second pass is what makes the language
+		// variants visible on first paint.
+		applyVariantSwap( window.kdnaRCResolved.region || '', slug );
+		applyLanguageVisibilityFilter( slug );
+
 		clearPendingIfReady();
 	}
 

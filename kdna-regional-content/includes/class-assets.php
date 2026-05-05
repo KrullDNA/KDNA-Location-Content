@@ -207,6 +207,27 @@ class KDNA_RC_Assets {
 			)
 		);
 
+		// Stage 11: Language Selector widget assets. Always enqueued on the
+		// front end so the widget is zero-config wherever an editor drops
+		// it. Both files are tiny.
+		wp_enqueue_style(
+			'kdna-rc-language-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/css/language-selector.css',
+			array( 'kdna-rc-flag-icons' ),
+			KDNA_RC_VERSION
+		);
+
+		wp_enqueue_script(
+			'kdna-rc-language-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/js/language-selector.js',
+			array( 'kdna-rc-frontend' ),
+			KDNA_RC_VERSION,
+			array(
+				'in_footer' => false,
+				'strategy'  => 'defer',
+			)
+		);
+
 		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
 		$single_mode = isset( $settings['single_post_behaviour'] ) ? (string) $settings['single_post_behaviour'] : 'show';
 		$redirect    = isset( $settings['single_post_redirect_url'] ) ? (string) $settings['single_post_redirect_url'] : '';
