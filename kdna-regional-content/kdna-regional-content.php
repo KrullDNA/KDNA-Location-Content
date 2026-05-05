@@ -96,6 +96,7 @@ function kdna_rc_activate() {
 				'restricted_post_types'      => array(),
 				'single_post_behaviour'      => 'show',
 				'single_post_redirect_url'   => '',
+				'delete_on_uninstall'        => false,
 			)
 		);
 	}

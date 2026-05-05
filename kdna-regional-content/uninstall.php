@@ -15,6 +15,15 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
+// Respect the admin's data retention preference. The default behaviour is to
+// keep everything in place so a delete-and-reinstall cycle preserves the
+// configuration. Only when the admin has explicitly ticked
+// "Delete data on uninstall" on the General tab does this script wipe data.
+$kdna_rc_settings = get_option( 'kdna_rc_settings', array() );
+if ( ! is_array( $kdna_rc_settings ) || empty( $kdna_rc_settings['delete_on_uninstall'] ) ) {
+	return;
+}
+
 global $wpdb;
 
 // 1. Plugin options.

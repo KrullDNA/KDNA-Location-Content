@@ -27,6 +27,29 @@
 	var PENDING  = 'kdna-rc-pending';
 	var safetyTimer = null;
 
+	// Lightweight diagnostic logger. Quiet by default; enable with either:
+	//   window.kdnaRCDebug = true (set before this script runs)  OR
+	//   the URL parameter ?kdna_rc_debug=1
+	// Output is prefixed with [KDNA RC] so it is easy to filter in DevTools.
+	var DEBUG = !! window.kdnaRCDebug;
+	try {
+		if ( ! DEBUG && /[?&]kdna_rc_debug=1\b/.test( window.location.search ) ) {
+			DEBUG = true;
+		}
+	} catch ( err ) {
+		// Non-browser context; ignore.
+	}
+	function debug( msg, extra ) {
+		if ( ! DEBUG || ! window.console || ! window.console.log ) {
+			return;
+		}
+		if ( typeof extra === 'undefined' ) {
+			window.console.log( '[KDNA RC] ' + msg );
+		} else {
+			window.console.log( '[KDNA RC] ' + msg, extra );
+		}
+	}
+
 	// Read a cookie value by name, decoded. Returns '' when not set.
 	function readCookie( name ) {
 		var pattern = new RegExp( '(?:^|; )' + name.replace( /[.$?*|{}()[\]\\\/+^]/g, '\\$&' ) + '=([^;]*)' );
@@ -46,24 +69,30 @@
 	}
 
 	// Hydrate data-kdna-show-in on listing items from the post-regions map
-	// printed by KDNA_RC_Assets::print_restricted_posts_map(). Matches the
-	// "post-{id}" class that WordPress's post_class() adds, so this works
-	// for every listing widget (JetEngine, Elementor Loop, query-builder,
-	// custom themes) without depending on any plugin's internal hooks.
+	// printed by KDNA_RC_Assets::print_restricted_posts_map().
 	//
-	// When a post-{id} element is found inside a known grid wrapper
-	// (.jet-listing-grid__item, .e-loop-item, .elementor-post), the
-	// attribute is moved up to that wrapper so hiding it collapses the
-	// grid cell cleanly. Otherwise the attribute is set on the post
-	// element itself.
+	// To survive the variety of listing widgets and custom templates in the
+	// wild, look for each post via three independent strategies:
+	//   1. .post-{id}                  - the standard post_class() class.
+	//   2. .kdna-rc-post-{id}          - our own marker, added by both
+	//                                    KDNA_RC_Post_Visibility::add_post_class
+	//                                    and the JetEngine item-classes filter.
+	//   3. [data-post-id="{id}"]       - some JetEngine and theme builders
+	//                                    write this attribute on item wrappers.
+	//
+	// When a match is found inside a known grid wrapper, the attribute is
+	// moved up to that wrapper so hiding it collapses the grid cell cleanly.
+	// Otherwise the attribute is set on the matched element itself.
 	function hydratePostVisibility() {
 		var map = window.kdnaRCPostRegions || {};
 		var keys = Object.keys( map );
 		if ( keys.length === 0 ) {
-			return;
+			debug( 'no post-regions map (no posts have _kdna_rc_regions meta).' );
+			return 0;
 		}
 
 		var WRAPPER_SELECTOR = '.jet-listing-grid__item, .e-loop-item, .elementor-post, .jet-listing-dynamic-post';
+		var tagged = 0;
 
 		for ( var i = 0; i < keys.length; i++ ) {
 			var postId = keys[ i ];
@@ -72,17 +101,33 @@
 				continue;
 			}
 			var value  = slugs.join( ',' );
-			var nodes  = document.querySelectorAll( '.post-' + postId );
+
+			// Combine all three strategies into one query for fewer DOM passes.
+			var nodes = document.querySelectorAll(
+				'.post-' + postId +
+				', .kdna-rc-post-' + postId +
+				', [data-post-id="' + postId + '"]'
+			);
+
+			if ( nodes.length === 0 ) {
+				debug( 'post ' + postId + ' has restrictions [' + value + '] but no matching DOM element on this page.' );
+				continue;
+			}
 
 			for ( var j = 0; j < nodes.length; j++ ) {
-				var post = nodes[ j ];
-				if ( post.hasAttribute( ATTR ) ) {
-					continue; // Server-side path already tagged it.
+				var node = nodes[ j ];
+				var target = node.closest ? node.closest( WRAPPER_SELECTOR ) : null;
+				var elem = target || node;
+				if ( elem.getAttribute( ATTR ) === value ) {
+					continue; // Already tagged with the same value.
 				}
-				var target = post.closest ? post.closest( WRAPPER_SELECTOR ) : null;
-				( target || post ).setAttribute( ATTR, value );
+				elem.setAttribute( ATTR, value );
+				tagged++;
 			}
 		}
+
+		debug( 'hydrated ' + tagged + ' element(s) from post-regions map.' );
+		return tagged;
 	}
 
 	// Walk every element marked with data-kdna-show-in and hide those whose
@@ -94,19 +139,24 @@
 	// after first resolution.
 	function applyVisibilityFilter( region ) {
 		var nodes = document.querySelectorAll( '[' + ATTR + ']' );
+		var hidden = 0;
+		var shown  = 0;
 		for ( var i = 0; i < nodes.length; i++ ) {
 			var node = nodes[ i ];
 			var allowed = splitList( node.getAttribute( ATTR ) );
 			if ( ! region || allowed.indexOf( region ) === -1 ) {
 				node.style.display = 'none';
 				node.setAttribute( 'data-kdna-rc-hidden', '1' );
+				hidden++;
 			} else {
 				if ( node.getAttribute( 'data-kdna-rc-hidden' ) === '1' ) {
 					node.style.display = '';
 					node.removeAttribute( 'data-kdna-rc-hidden' );
 				}
+				shown++;
 			}
 		}
+		debug( 'visibility filter: region="' + ( region || '(none)' ) + '" matched=' + nodes.length + ' hidden=' + hidden + ' shown=' + shown + '.' );
 	}
 
 	// Single-post redirect: read <meta name="kdna-rc-post-regions"> and
@@ -187,6 +237,8 @@
 
 	// Run the full pipeline once the visitor's region is known.
 	function applyForRegion( region ) {
+		debug( 'resolved region: "' + ( region || '(empty)' ) + '". Default region: "' + ( cfg.defaultRegion || '(empty)' ) + '".' );
+		debug( 'window.kdnaRCPostRegions =', window.kdnaRCPostRegions || {} );
 		hydratePostVisibility();
 		applyVisibilityFilter( region );
 		applyVariantSwap( region );

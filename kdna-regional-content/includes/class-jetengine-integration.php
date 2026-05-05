@@ -57,11 +57,46 @@ class KDNA_RC_JetEngine_Integration {
 		// the listing item wrapper. Two-arg signature in current versions.
 		add_filter( 'jet-engine/listing/grid/item-attributes', array( $this, 'filter_item_attributes' ), 10, 2 );
 
+		// Class-based marker. The CSS class is the most reliable way to pin
+		// a JetEngine listing item to its post because JetEngine has used
+		// several different per-item action hook names across versions, and
+		// the item-classes filter has been stable for a long time.
+		add_filter( 'jet-engine/listing/grid/item-classes', array( $this, 'filter_item_classes' ), 10, 1 );
+
 		// Fallback path: capture the rendered item HTML and patch the outer
 		// wrapper. Activated unconditionally so we still cover the case
-		// where the filter above does not run for a given listing source.
+		// where neither filter above lands on the right element.
 		add_action( 'jet-engine/listing/grid/before-item', array( $this, 'start_item_buffer' ), 10, 1 );
 		add_action( 'jet-engine/listing/grid/after-item', array( $this, 'end_item_buffer' ), 10, 1 );
+	}
+
+	/**
+	 * Add a kdna-rc-post-{ID} marker class to the JetEngine listing item.
+	 *
+	 * Mirrors the post_class() marker added by KDNA_RC_Post_Visibility so
+	 * the front-end JS has a reliable hook regardless of how the listing
+	 * template renders the inner HTML.
+	 *
+	 * @param array $classes Existing CSS classes.
+	 * @return array
+	 */
+	public function filter_item_classes( $classes ) {
+		if ( ! is_array( $classes ) ) {
+			$classes = array();
+		}
+		$post_id = (int) get_the_ID();
+		if ( $post_id <= 0 ) {
+			return $classes;
+		}
+		$regions = KDNA_RC_Post_Visibility::get_post_regions( $post_id );
+		if ( empty( $regions ) ) {
+			return $classes;
+		}
+		$marker = 'kdna-rc-post-' . $post_id;
+		if ( ! in_array( $marker, $classes, true ) ) {
+			$classes[] = $marker;
+		}
+		return $classes;
 	}
 
 	/**

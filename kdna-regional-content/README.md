@@ -184,9 +184,9 @@ The **Tools, Clear All Caches** button flushes the WP Rocket page cache, the Wor
 - Check that `wp-content/uploads/kdna-regional-content/` exists and is writable by the web server.
 - The plugin streams the MaxMind archive to disk and extracts via `PharData`. If your host disables Phar, the update fails with a clear error message; either enable Phar or upload the `.mmdb` file manually to the same folder.
 
-**Uninstall does not clean everything.**
-- Deactivating the plugin only stops it running; it keeps options and the database file in place so reactivation is clean.
-- Uninstalling (Plugins, Delete) runs `uninstall.php`, which deletes the `kdna_rc_settings`, `kdna_rc_regions`, and `kdna_rc_db_status` options, removes the `_kdna_rc_regions` post meta, deletes plugin transients, clears the cron event, and removes the `wp-content/uploads/kdna-regional-content/` folder.
+**Uninstall and data retention.**
+- Deactivating the plugin only stops it running; settings and the database file stay in place.
+- Uninstalling (Plugins, Delete) **preserves your data by default** so a delete-and-reinstall cycle restores everything. Tick **Regional Content, General, Delete data on uninstall** if you want a clean wipe; only then does `uninstall.php` remove the `kdna_rc_settings`, `kdna_rc_regions`, and `kdna_rc_db_status` options, delete `_kdna_rc_regions` post meta, clear plugin transients, unschedule the cron event, and remove `wp-content/uploads/kdna-regional-content/`.
 
 ## Build status
 
