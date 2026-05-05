@@ -82,6 +82,13 @@ final class KDNA_RC_Plugin {
 	private $assets = null;
 
 	/**
+	 * Active widget variant extensions (Stage 6+).
+	 *
+	 * @var array<int,KDNA_RC_Variants_Base>
+	 */
+	private $variant_extensions = array();
+
+	/**
 	 * Return the singleton instance, creating it on first call.
 	 *
 	 * @return KDNA_RC_Plugin
@@ -159,6 +166,17 @@ final class KDNA_RC_Plugin {
 
 		$this->assets = new KDNA_RC_Assets();
 		$this->assets->init();
+
+		// Stage 6 widget variant extensions. New widgets are added by
+		// appending to this list; everything else routes through the shared
+		// base class.
+		$this->variant_extensions = array(
+			new KDNA_RC_Heading_Extension(),
+			new KDNA_RC_Text_Editor_Extension(),
+		);
+		foreach ( $this->variant_extensions as $extension ) {
+			$extension->init();
+		}
 
 		// Boot the admin settings page only inside wp-admin.
 		if ( is_admin() ) {

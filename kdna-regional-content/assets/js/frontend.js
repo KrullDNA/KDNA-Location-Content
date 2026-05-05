@@ -110,9 +110,45 @@
 		}
 	}
 
+	// Swap content variants based on the visitor's region.
+	//
+	// Each kdna-rc-variant-wrapper produced by the Stage 6 extensions holds:
+	//   1. one .kdna-rc-default child (visible, data-kdna-region="default"),
+	//   2. one or more sibling .kdna-rc-variant children with
+	//      data-kdna-region="<slug>" and an inline display:none.
+	//
+	// When the visitor's region matches a sibling we hide the default and
+	// reveal the matching variant. If nothing matches the default stays
+	// visible. Cleared inline display so any variant style="display:none"
+	// is reset to its computed value.
+	function applyVariantSwap( region ) {
+		var wrappers = document.querySelectorAll( '.kdna-rc-variant-wrapper' );
+		for ( var i = 0; i < wrappers.length; i++ ) {
+			var wrapper = wrappers[ i ];
+			var defaultNode = wrapper.querySelector( '.kdna-rc-variant.kdna-rc-default' );
+			var match = null;
+			if ( region ) {
+				match = wrapper.querySelector(
+					'.kdna-rc-variant[data-kdna-region="' + region.replace( /"/g, '\\"' ) + '"]:not(.kdna-rc-default)'
+				);
+			}
+			if ( match ) {
+				if ( defaultNode ) {
+					defaultNode.style.display = 'none';
+				}
+				match.style.display = '';
+			} else if ( defaultNode ) {
+				// Make sure the default is visible (it is by default, but a
+				// previous swap on the same page could have hidden it).
+				defaultNode.style.display = '';
+			}
+		}
+	}
+
 	// Run the full pipeline once the visitor's region is known.
 	function applyForRegion( region ) {
 		applyVisibilityFilter( region );
+		applyVariantSwap( region );
 		applySinglePostPolicy( region );
 		clearPending();
 	}
