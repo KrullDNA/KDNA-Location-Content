@@ -171,6 +171,13 @@ final class KDNA_RC_Plugin {
 		$this->assets = new KDNA_RC_Assets();
 		$this->assets->init();
 
+		// Stage 8 polish layer: WP Rocket + cache integration and admin
+		// notices for misconfigured states. Both are admin-leaning but
+		// register a couple of front-side filters so cache exclusion works
+		// outside wp-admin.
+		( new KDNA_RC_Cache_Integration() )->init();
+		( new KDNA_RC_Admin_Notices() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.

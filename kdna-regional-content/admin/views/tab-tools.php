@@ -153,6 +153,27 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'Clear Caches', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php
+		if ( KDNA_RC_Cache_Integration::is_wp_rocket_active() ) {
+			echo esc_html__( 'WP Rocket detected. Clearing caches will flush the WP Rocket page cache, the WordPress object cache, and any plugin transients.', 'kdna-regional-content' );
+		} else {
+			echo esc_html__( 'Clears the WordPress object cache and plugin transients. WP Rocket is not active on this site.', 'kdna-regional-content' );
+		}
+		?>
+	</p>
+
+	<p class="kdna-rc-actions">
+		<button type="button" class="button" id="kdna-rc-clear-caches">
+			<?php echo esc_html__( 'Clear All Caches', 'kdna-regional-content' ); ?>
+		</button>
+		<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		<span class="kdna-rc-clear-message" role="status" aria-live="polite"></span>
+	</p>
+
+	<hr />
+
 	<form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>">
 		<?php
 		settings_fields( 'kdna_rc_settings_group' );

@@ -644,6 +644,7 @@ class KDNA_RC_Settings {
 					'deleteRegion'   => KDNA_RC_Regions::AJAX_DELETE,
 					'reorderRegions' => KDNA_RC_Regions::AJAX_REORDER,
 					'testDetection'  => KDNA_RC_Detector::AJAX_TEST_ACTION,
+					'clearCaches'    => KDNA_RC_Cache_Integration::AJAX_CLEAR,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
@@ -666,6 +667,8 @@ class KDNA_RC_Settings {
 					'testDetecting'   => __( 'Looking up...', 'kdna-regional-content' ),
 					'testNoMatch'     => __( 'No region matches this country.', 'kdna-regional-content' ),
 					'testNoCountry'   => __( 'GeoIP could not resolve this IP. Make sure the database is up to date.', 'kdna-regional-content' ),
+					'clearing'        => __( 'Clearing caches...', 'kdna-regional-content' ),
+					'cleared'         => __( 'Caches cleared.', 'kdna-regional-content' ),
 				),
 			)
 		);

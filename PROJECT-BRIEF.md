@@ -376,7 +376,7 @@ Update this table between Claude Code sessions to maintain continuity.
 | 5. Visibility control on all widgets | Complete | Element + post visibility with JetEngine support: Elementor controls + render attribute, post-type meta box with `_kdna_rc_regions`, JetEngine listing-item attribute injection, single-post meta tag with redirect mode, anti-flicker inline style + script and frontend.js. |
 | 6. Heading + Text Editor variants | Complete | KDNA_RC_Variants_Base abstract + Heading and Text Editor extensions wrap output in `kdna-rc-variant-wrapper`, DOMDocument-patched headings (text + link override), full body replacement for Text Editor, lang/dir attributes per variant, frontend.js variant swap. |
 | 7. Button + Image + Icon + Icon List | Complete | Variant repeaters on Button (text/link/icon), Image (image/alt/link), Icon (icon/link); Icon List uses per-item Show in Regions multi-select with `data-kdna-show-in` on each `<li>`. |
-| 8. WP Rocket + polish + README | Not started | |
+| 8. WP Rocket + polish + README | Complete | WP Rocket auto-exclusion of detection endpoint, Clear All Caches AJAX, four admin notices (license, db, regions, default), comprehensive README, hardened uninstall with post meta + uploads cleanup, security audit pass. |
 | 9. Final zip | Not started | |
 
 ---

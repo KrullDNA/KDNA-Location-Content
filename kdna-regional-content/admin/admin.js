@@ -551,9 +551,68 @@
 		} );
 	}
 
+	// =====================================================================
+	// Tools tab : Clear All Caches
+	// =====================================================================
+
+	function bindClearCaches() {
+		var $button = $( '#kdna-rc-clear-caches' );
+		if ( ! $button.length ) {
+			return;
+		}
+
+		var $actions = $button.closest( '.kdna-rc-actions' );
+		var $spinner = $actions.find( '.kdna-rc-spinner' );
+		var $message = $actions.find( '.kdna-rc-clear-message' );
+
+		$button.on( 'click', function ( event ) {
+			event.preventDefault();
+
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$message
+				.removeClass( 'kdna-rc-msg-ok kdna-rc-msg-error' )
+				.text( config.i18n.clearing );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.clearCaches,
+					nonce: config.nonce
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						var msg = ( response.data && response.data.message ) || config.i18n.cleared;
+						if ( response.data && response.data.cleared && response.data.cleared.length ) {
+							msg += ' (' + response.data.cleared.join( ', ' ) + ')';
+						}
+						$message.addClass( 'kdna-rc-msg-ok' ).text( msg );
+					} else {
+						var err = ( response && response.data && response.data.message ) || config.i18n.failure;
+						$message.addClass( 'kdna-rc-msg-error' ).text( err );
+					}
+				} )
+				.fail( function ( jqXHR ) {
+					var msg = config.i18n.network;
+					if ( jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message ) {
+						msg = jqXHR.responseJSON.data.message;
+					}
+					$message.addClass( 'kdna-rc-msg-error' ).text( msg );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
+
 	$( function () {
 		bindUpdateDatabaseButton();
 		bindRegionsTab();
 		bindTestDetection();
+		bindClearCaches();
 	} );
 } )( jQuery );
