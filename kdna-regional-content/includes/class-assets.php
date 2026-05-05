@@ -34,6 +34,7 @@ class KDNA_RC_Assets {
 
 		add_action( 'wp_head', array( $this, 'print_anti_flicker' ), 1 );
 		add_action( 'wp_head', array( $this, 'print_post_regions_meta' ), 1 );
+		add_action( 'wp_head', array( $this, 'print_restricted_posts_map' ), 2 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend' ) );
 	}
 
@@ -115,6 +116,44 @@ class KDNA_RC_Assets {
 			'<meta name="kdna-rc-post-regions" content="%s" />' . "\n",
 			esc_attr( implode( ',', $regions ) )
 		);
+	}
+
+	/**
+	 * Print the post-regions map as a JS global.
+	 *
+	 * Frontend.js reads this map and applies data-kdna-show-in to listing
+	 * items at runtime, matched on the post-{id} class added by
+	 * post_class(). Provides a robust fallback when the JetEngine PHP
+	 * filter / action hooks do not fire (which varies by JetEngine version).
+	 *
+	 * Output is skipped entirely on admin pages and when no post is
+	 * restricted, so the script tag never appears on sites that have not
+	 * configured any post-level visibility.
+	 *
+	 * @return void
+	 */
+	public function print_restricted_posts_map() {
+		$map = KDNA_RC_Post_Visibility::get_restricted_posts_map();
+		if ( empty( $map ) ) {
+			return;
+		}
+
+		// Per-post CSS rules so first-time non-default visitors do not see
+		// restricted listing items flash before the JS hydration runs. The
+		// rules only apply while <html> carries kdna-rc-pending; default-region
+		// returning visitors never enter the pending state and the rules
+		// remain inert for them.
+		$selectors = array();
+		foreach ( array_keys( $map ) as $post_id ) {
+			$selectors[] = '.kdna-rc-pending .post-' . (int) $post_id;
+		}
+		if ( ! empty( $selectors ) ) {
+			echo "<style id=\"kdna-rc-post-pending\">\n";
+			echo esc_html( implode( ",\n", $selectors ) ) . " { visibility: hidden; }\n";
+			echo "</style>\n";
+		}
+
+		echo "<script id=\"kdna-rc-post-regions\">window.kdnaRCPostRegions = " . wp_json_encode( $map ) . ";</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON encoding is the appropriate escape.
 	}
 
 	/**

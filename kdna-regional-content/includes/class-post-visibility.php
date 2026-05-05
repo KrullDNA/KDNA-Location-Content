@@ -107,6 +107,61 @@ class KDNA_RC_Post_Visibility {
 	}
 
 	/**
+	 * Build a map of post IDs to their region restrictions.
+	 *
+	 * Returns every post that has a non-empty _kdna_rc_regions meta entry.
+	 * Used by the front-end script to apply data-kdna-show-in to listing
+	 * items at runtime, which works with any listing widget (JetEngine,
+	 * Elementor Loop, query builder) that uses post_class() so each item
+	 * carries a post-{id} class.
+	 *
+	 * Cached for an hour in a transient. The cache is busted from save_meta()
+	 * so an editor's change is reflected on the next page view.
+	 *
+	 * @return array<int,array<int,string>>
+	 */
+	public static function get_restricted_posts_map() {
+		$cache_key = 'kdna_rc_restricted_posts_map';
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		global $wpdb;
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value <> ''",
+				self::META_KEY
+			)
+		);
+
+		$map = array();
+		foreach ( (array) $rows as $row ) {
+			$value = maybe_unserialize( $row->meta_value );
+			if ( ! is_array( $value ) || empty( $value ) ) {
+				continue;
+			}
+			$slugs = array_values( array_filter( array_map( 'sanitize_key', $value ) ) );
+			if ( empty( $slugs ) ) {
+				continue;
+			}
+			$map[ (int) $row->post_id ] = $slugs;
+		}
+
+		set_transient( $cache_key, $map, HOUR_IN_SECONDS );
+		return $map;
+	}
+
+	/**
+	 * Invalidate the restricted-posts map cache.
+	 *
+	 * @return void
+	 */
+	public static function bust_cache() {
+		delete_transient( 'kdna_rc_restricted_posts_map' );
+	}
+
+	/**
 	 * Register the Regional Visibility meta box on every configured post type.
 	 *
 	 * @return void
@@ -215,5 +270,7 @@ class KDNA_RC_Post_Visibility {
 		} else {
 			update_post_meta( $post_id, self::META_KEY, $valid );
 		}
+
+		self::bust_cache();
 	}
 }
