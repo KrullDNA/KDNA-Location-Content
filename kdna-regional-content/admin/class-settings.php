@@ -44,16 +44,33 @@ class KDNA_RC_Settings {
 	 * @return void
 	 */
 	public function init() {
+		// Note: the tabs array is built lazily inside ensure_tabs() so the
+		// __() calls run on admin_menu / admin_init (after the `init`
+		// action), not on plugins_loaded. WP 6.7+ warns about translation
+		// loading triggered before `init` and this defer is the fix.
+		add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+	}
+
+	/**
+	 * Lazy-build the tabs array.
+	 *
+	 * Called from any code path that needs the tabs (register_menu,
+	 * current_tab, render_page, JS localisation). Idempotent.
+	 *
+	 * @return void
+	 */
+	private function ensure_tabs() {
+		if ( ! empty( $this->tabs ) ) {
+			return;
+		}
 		$this->tabs = array(
 			'general'   => __( 'General', 'kdna-regional-content' ),
 			'regions'   => __( 'Regions', 'kdna-regional-content' ),
 			'languages' => __( 'Languages', 'kdna-regional-content' ),
 			'tools'     => __( 'Tools', 'kdna-regional-content' ),
 		);
-
-		add_action( 'admin_menu', array( $this, 'register_menu' ) );
-		add_action( 'admin_init', array( $this, 'register_settings' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
 	/**
@@ -1159,6 +1176,7 @@ class KDNA_RC_Settings {
 	 * @return string Tab slug.
 	 */
 	public function current_tab() {
+		$this->ensure_tabs();
 		$requested = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only navigation, no state change.
 		if ( $requested && isset( $this->tabs[ $requested ] ) ) {
 			return $requested;
@@ -1195,6 +1213,7 @@ class KDNA_RC_Settings {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'kdna-regional-content' ) );
 		}
 
+		$this->ensure_tabs();
 		$tabs        = $this->tabs;
 		$current_tab = $this->current_tab();
 
@@ -1207,6 +1226,7 @@ class KDNA_RC_Settings {
 	 * @return array<string,string>
 	 */
 	public function tabs() {
+		$this->ensure_tabs();
 		return $this->tabs;
 	}
 }
