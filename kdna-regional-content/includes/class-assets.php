@@ -57,7 +57,8 @@ class KDNA_RC_Assets {
 		// data attribute renders.
 		echo "<style id=\"kdna-rc-pending-style\">\n";
 		echo ".kdna-rc-pending [data-kdna-show-in],\n";
-		echo ".kdna-rc-pending .kdna-rc-variant-wrapper { visibility: hidden; }\n";
+		echo ".kdna-rc-pending .kdna-rc-variant-wrapper,\n";
+		echo ".kdna-rc-pending .kdna-rc-mlf { visibility: hidden; }\n";
 		echo "</style>\n";
 
 		// Read defaultRegion from window.kdnaRC (printed at priority 1 by the

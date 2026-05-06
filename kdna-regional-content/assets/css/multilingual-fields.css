@@ -1,0 +1,127 @@
+/*
+ * KDNA Regional Content : Multilingual JetEngine field admin styles.
+ *
+ * Compact tablist + panel layout that drops into the JetEngine post
+ * meta box. The status dot is a simple two-state indicator: solid when
+ * the tab has a value, empty ring when the tab is blank and will fall
+ * back to default at render time.
+ */
+
+.kdna-rc-mlf-editor {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.kdna-rc-mlf-tablist {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-bottom: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.kdna-rc-mlf-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border: 0;
+	border-right: 1px solid #dcdcde;
+	background: transparent;
+	cursor: pointer;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.kdna-rc-mlf-tab:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: -2px;
+}
+
+.kdna-rc-mlf-tab.is-active {
+	background: #fff;
+	color: #1d2327;
+	font-weight: 600;
+	box-shadow: inset 0 -2px 0 #2271b1;
+}
+
+.kdna-rc-mlf-tab-flag {
+	display: inline-block;
+	width: 18px;
+	height: 14px;
+	border: 1px solid rgba( 0, 0, 0, 0.08 );
+	border-radius: 2px;
+}
+
+.kdna-rc-mlf-tab-status {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	border: 1px solid #8c8f94;
+	margin-left: 2px;
+}
+
+.kdna-rc-mlf-tab-status.is-filled {
+	background: #2271b1;
+	border-color: #2271b1;
+}
+
+.kdna-rc-mlf-tab-status.is-empty {
+	background: transparent;
+}
+
+.kdna-rc-mlf-panels {
+	padding: 14px 16px;
+}
+
+.kdna-rc-mlf-panel[hidden] {
+	display: none;
+}
+
+.kdna-rc-mlf-input {
+	width: 100%;
+	max-width: 720px;
+}
+
+/* Image picker */
+
+.kdna-rc-mlf-image-picker {
+	max-width: 540px;
+}
+
+.kdna-rc-mlf-image-preview {
+	width: 100%;
+	min-height: 120px;
+	max-height: 280px;
+	border: 1px dashed #c3c4c7;
+	border-radius: 4px;
+	background: #fafafa;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.kdna-rc-mlf-image-preview img {
+	max-width: 100%;
+	max-height: 280px;
+	object-fit: contain;
+}
+
+.kdna-rc-mlf-image-empty {
+	color: #6c7079;
+	font-style: italic;
+}
+
+.kdna-rc-mlf-image-actions {
+	margin-top: 8px;
+}
+
+.kdna-rc-mlf-image-actions .button-link {
+	color: #b32d2e;
+	margin-left: 12px;
+}

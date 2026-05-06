@@ -194,6 +194,111 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'SEO Health Check', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php echo esc_html__( 'Scan the site for common SEO misconfigurations: Yoast detection, regions and languages set, hreflang enabled, sitemap mode, eligible post types, rewrite-rule freshness.', 'kdna-regional-content' ); ?>
+	</p>
+	<p class="kdna-rc-actions">
+		<button type="button" class="button" id="kdna-rc-seo-health-check">
+			<?php echo esc_html__( 'Run SEO health check', 'kdna-regional-content' ); ?>
+		</button>
+		<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+	</p>
+	<div class="kdna-rc-seo-health-result" aria-live="polite"></div>
+
+	<hr />
+
+	<h2><?php echo esc_html__( 'URL Routing', 'kdna-regional-content' ); ?></h2>
+	<?php
+	$kdna_rc_url_routing = new KDNA_RC_URL_Routing();
+	$kdna_rc_variants_per_post = $kdna_rc_url_routing->estimate_variants_per_post();
+	?>
+	<p>
+		<?php
+		printf(
+			/* translators: %d: number of variants per post. */
+			esc_html__( 'With the current region and language configuration, each post can produce up to %d cache-able URL variants (bare + regional + language + combined). Cache plugins like WP Rocket cache each URL separately, so a site with thousands of posts may see significantly larger cache footprints than before.', 'kdna-regional-content' ),
+			(int) $kdna_rc_variants_per_post
+		);
+		?>
+	</p>
+	<p class="kdna-rc-actions">
+		<button type="button" class="button" id="kdna-rc-flush-rules">
+			<?php echo esc_html__( 'Flush rewrite rules', 'kdna-regional-content' ); ?>
+		</button>
+		<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		<span class="kdna-rc-flush-message" role="status" aria-live="polite"></span>
+	</p>
+	<p class="description">
+		<?php echo esc_html__( 'Use this button when regional URLs return 404 unexpectedly after a permalink change. Region / language CRUD operations flush automatically; this button is the manual escape hatch.', 'kdna-regional-content' ); ?>
+	</p>
+
+	<hr />
+
+	<h2><?php echo esc_html__( 'Field Translation Audit', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php echo esc_html__( 'Scan all KDNA Multilingual fields and report which posts have non-empty values in each language. Use the bulk action to seed empty language slots so editors can find them on the next post edit.', 'kdna-regional-content' ); ?>
+	</p>
+	<div class="kdna-rc-audit">
+		<p>
+			<label for="kdna-rc-audit-cpt"><?php echo esc_html__( 'Post Type', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-audit-cpt">
+				<option value="__all__"><?php echo esc_html__( 'All public post types', 'kdna-regional-content' ); ?></option>
+				<?php foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $cpt ) : ?>
+					<option value="<?php echo esc_attr( $cpt->name ); ?>"><?php echo esc_html( $cpt->labels->singular_name . ' (' . $cpt->name . ')' ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<button type="button" class="button" id="kdna-rc-audit-run"><?php echo esc_html__( 'Run Audit', 'kdna-regional-content' ); ?></button>
+			<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		</p>
+		<div class="kdna-rc-audit-result" aria-live="polite"></div>
+	</div>
+
+	<hr />
+
+	<h2><?php echo esc_html__( 'Migrate Field to Multilingual', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php echo esc_html__( 'Convert an existing JetEngine Text, Textarea, or WYSIWYG field into its KDNA Multilingual equivalent. Existing values become the Default tab on every post; per-language tabs start empty.', 'kdna-regional-content' ); ?>
+	</p>
+	<div class="kdna-rc-migrate">
+		<p>
+			<label for="kdna-rc-mig-cpt"><?php echo esc_html__( 'Source CPT', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-mig-cpt">
+				<option value=""><?php echo esc_html__( 'Select a post type...', 'kdna-regional-content' ); ?></option>
+				<?php foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $cpt ) : ?>
+					<option value="<?php echo esc_attr( $cpt->name ); ?>"><?php echo esc_html( $cpt->labels->singular_name . ' (' . $cpt->name . ')' ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</p>
+		<p>
+			<label for="kdna-rc-mig-field"><?php echo esc_html__( 'Source Field', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-mig-field" disabled>
+				<option value=""><?php echo esc_html__( 'Pick a CPT first', 'kdna-regional-content' ); ?></option>
+			</select>
+		</p>
+		<p>
+			<label for="kdna-rc-mig-target"><?php echo esc_html__( 'Target Type', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-mig-target">
+				<option value="kdna_rc_ml_text"><?php echo esc_html__( 'Multilingual Text', 'kdna-regional-content' ); ?></option>
+				<option value="kdna_rc_ml_image"><?php echo esc_html__( 'Multilingual Image', 'kdna-regional-content' ); ?></option>
+				<option value="kdna_rc_ml_wysiwyg"><?php echo esc_html__( 'Multilingual WYSIWYG', 'kdna-regional-content' ); ?></option>
+			</select>
+		</p>
+		<p>
+			<button type="button" class="button button-primary" id="kdna-rc-mig-run" disabled>
+				<?php echo esc_html__( 'Migrate', 'kdna-regional-content' ); ?>
+			</button>
+			<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		</p>
+		<div class="kdna-rc-migrate-progress" hidden>
+			<div class="kdna-rc-migrate-bar"><div class="kdna-rc-migrate-bar-fill" style="width:0%"></div></div>
+			<p class="kdna-rc-migrate-status" aria-live="polite"></p>
+		</div>
+		<div class="kdna-rc-migrate-result" aria-live="polite"></div>
+	</div>
+
+	<hr />
+
 	<h2><?php echo esc_html__( 'Clear Caches', 'kdna-regional-content' ); ?></h2>
 	<p>
 		<?php

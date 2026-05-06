@@ -1037,5 +1037,463 @@
 		bindClearCaches();
 		bindLanguagesTab();
 		bindTestLanguageDetection();
+		bindMigrationTool();
+		bindAuditTool();
+		bindFlushRewriteRules();
+		bindUrlPreviewMetaBox();
+		bindSeoHealthCheck();
 	} );
+
+	// =====================================================================
+	// Tools tab : SEO health check
+	// =====================================================================
+
+	function bindSeoHealthCheck() {
+		var $button = $( '#kdna-rc-seo-health-check' );
+		if ( ! $button.length ) { return; }
+		var $spinner = $button.parent().find( '.kdna-rc-spinner' );
+		var $result  = $( '.kdna-rc-seo-health-result' );
+
+		function escapeHtml( str ) {
+			return String( str ).replace( /[&<>"']/g, function ( c ) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ c ];
+			} );
+		}
+
+		function levelBadge( level ) {
+			var cls = level === 'pass' ? 'is-ok' : ( level === 'fail' ? 'is-error' : 'is-warn' );
+			var lbl = level.charAt( 0 ).toUpperCase() + level.slice( 1 );
+			return '<span class="kdna-rc-health-badge ' + cls + '">' + lbl + '</span>';
+		}
+
+		$button.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>Running checks...</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.seoHealthCheck,
+					nonce: config.nonce
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( ( response && response.data && response.data.message ) || 'Health check failed.' ) + '</p>' );
+						return;
+					}
+					var findings = ( response.data && response.data.findings ) || [];
+					if ( findings.length === 0 ) {
+						$result.html( '<p>No findings.</p>' );
+						return;
+					}
+					var html = '<ul class="kdna-rc-health-list">';
+					findings.forEach( function ( f ) {
+						html += '<li>' + levelBadge( f.level ) + ' <strong>' + escapeHtml( f.title ) + '</strong>: ' + escapeHtml( f.message ) + '</li>';
+					} );
+					html += '</ul>';
+					$result.html( html );
+				} )
+				.fail( function () {
+					$result.html( '<p class="kdna-rc-msg-error">Network error.</p>' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
+
+	// =====================================================================
+	// Tools tab : Flush rewrite rules
+	// =====================================================================
+
+	function bindFlushRewriteRules() {
+		var $button = $( '#kdna-rc-flush-rules' );
+		if ( ! $button.length ) { return; }
+
+		var $actions = $button.parent();
+		var $spinner = $actions.find( '.kdna-rc-spinner' );
+		var $message = $actions.find( '.kdna-rc-flush-message' );
+
+		$button.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$message.removeClass( 'kdna-rc-msg-ok kdna-rc-msg-error' ).text( '' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.flushRules,
+					nonce: config.nonce
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						$message.addClass( 'kdna-rc-msg-ok' ).text( ( response.data && response.data.message ) || 'Done.' );
+					} else {
+						$message.addClass( 'kdna-rc-msg-error' ).text( ( response && response.data && response.data.message ) || 'Flush failed.' );
+					}
+				} )
+				.fail( function () {
+					$message.addClass( 'kdna-rc-msg-error' ).text( 'Network error.' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
+
+	// =====================================================================
+	// Post edit : URL preview meta box (copy + Test as visitor)
+	// =====================================================================
+
+	function bindUrlPreviewMetaBox() {
+		var box = document.getElementById( 'kdna_rc_url_preview' );
+		if ( ! box ) { return; }
+
+		// Copy buttons.
+		$( box ).on( 'click', '.kdna-rc-url-copy', function ( ev ) {
+			ev.preventDefault();
+			var url = $( this ).attr( 'data-url' ) || '';
+			if ( ! url ) { return; }
+			var $btn = $( this );
+			var prev = $btn.text();
+
+			function flash( ok ) {
+				$btn.text( ok ? 'Copied!' : 'Copy failed' );
+				setTimeout( function () { $btn.text( prev ); }, 1500 );
+			}
+
+			if ( navigator.clipboard && navigator.clipboard.writeText ) {
+				navigator.clipboard.writeText( url ).then( function () { flash( true ); }, function () { flash( false ); } );
+				return;
+			}
+
+			// Fallback: temporary textarea + execCommand.
+			var ta = document.createElement( 'textarea' );
+			ta.value = url;
+			document.body.appendChild( ta );
+			ta.select();
+			try {
+				flash( document.execCommand( 'copy' ) );
+			} catch ( err ) {
+				flash( false );
+			}
+			document.body.removeChild( ta );
+		} );
+
+		// Test as visitor : open the selected URL in a new tab.
+		$( box ).on( 'click', '.kdna-rc-test-as-visitor-go', function ( ev ) {
+			ev.preventDefault();
+			var url = $( box ).find( '.kdna-rc-test-as-visitor' ).val();
+			if ( url ) {
+				window.open( url, '_blank', 'noopener' );
+			}
+		} );
+	}
+
+	// =====================================================================
+	// Tools tab : Field Translation Audit
+	// =====================================================================
+
+	function bindAuditTool() {
+		var $cpt    = $( '#kdna-rc-audit-cpt' );
+		var $run    = $( '#kdna-rc-audit-run' );
+		var $result = $( '.kdna-rc-audit-result' );
+		if ( ! $run.length ) { return; }
+		var $spinner = $run.parent().find( '.kdna-rc-spinner' );
+
+		function escapeHtml( str ) {
+			return String( str ).replace( /[&<>"']/g, function ( c ) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ c ];
+			} );
+		}
+
+		// Render the results table.
+		function renderTable( payload ) {
+			var fields = payload.fields || {};
+			var rows   = payload.rows || [];
+			var langs  = payload.lang_map || {};
+
+			var fieldKeys = Object.keys( fields );
+			if ( fieldKeys.length === 0 ) {
+				$result.html( '<p><em>' + escapeHtml( 'No multilingual fields found on the selected post type.' ) + '</em></p>' );
+				return;
+			}
+
+			// Per-field summary at the top: completeness percentage per language.
+			var langKeys = Object.keys( langs );
+			var summary  = '<h3>Completeness</h3><table class="widefat striped" style="max-width:760px;"><thead><tr><th>Field</th><th>Default</th>';
+			langKeys.forEach( function ( s ) {
+				summary += '<th>' + escapeHtml( langs[ s ].name ) + '</th>';
+			} );
+			summary += '</tr></thead><tbody>';
+
+			fieldKeys.forEach( function ( field ) {
+				var counts = { default: 0 };
+				langKeys.forEach( function ( s ) { counts[ s ] = 0; } );
+				rows.forEach( function ( row ) {
+					var entry = ( row.fields && row.fields[ field ] ) || {};
+					if ( entry.default ) { counts.default++; }
+					langKeys.forEach( function ( s ) { if ( entry[ s ] ) { counts[ s ]++; } } );
+				} );
+				var total = rows.length || 1;
+				summary += '<tr><th>' + escapeHtml( fields[ field ] ) + '<br><code>' + escapeHtml( field ) + '</code></th>';
+				summary += '<td>' + counts.default + '/' + rows.length + ' (' + Math.round( ( counts.default / total ) * 100 ) + '%)</td>';
+				langKeys.forEach( function ( s ) {
+					var pct = Math.round( ( counts[ s ] / total ) * 100 );
+					summary += '<td>' + counts[ s ] + '/' + rows.length + ' (' + pct + '%) ';
+					if ( counts[ s ] < rows.length ) {
+						summary += ' <button type="button" class="button-link kdna-rc-audit-bulk" data-field="' + escapeHtml( field ) + '" data-lang="' + escapeHtml( s ) + '">Add empty slots</button>';
+					}
+					summary += '</td>';
+				} );
+				summary += '</tr>';
+			} );
+			summary += '</tbody></table>';
+
+			// Per-post table.
+			var detail = '<h3>Per-post completeness</h3><table class="widefat striped" style="margin-top:1em;"><thead><tr><th>Post</th>';
+			fieldKeys.forEach( function ( field ) {
+				detail += '<th colspan="' + ( langKeys.length + 1 ) + '">' + escapeHtml( fields[ field ] ) + '</th>';
+			} );
+			detail += '</tr><tr><th></th>';
+			fieldKeys.forEach( function () {
+				detail += '<th>Default</th>';
+				langKeys.forEach( function ( s ) {
+					detail += '<th>' + escapeHtml( langs[ s ].flag || s ) + '</th>';
+				} );
+			} );
+			detail += '</tr></thead><tbody>';
+
+			rows.forEach( function ( row ) {
+				detail += '<tr><td><a href="' + escapeHtml( row.edit_link ) + '" target="_blank">' + escapeHtml( row.title || '#' + row.id ) + '</a></td>';
+				fieldKeys.forEach( function ( field ) {
+					var entry = ( row.fields && row.fields[ field ] ) || {};
+					var dotDefault = entry.default ? '●' : '○';
+					detail += '<td title="default">' + dotDefault + '</td>';
+					langKeys.forEach( function ( s ) {
+						var dot = entry[ s ] ? '●' : '○';
+						var link = entry[ s ]
+							? dot
+							: '<a href="' + escapeHtml( row.edit_link ) + '#kdna-rc-mlf-' + escapeHtml( field ) + '-' + escapeHtml( s ) + '" target="_blank" title="Translate ' + escapeHtml( s ) + '">' + dot + '</a>';
+						detail += '<td>' + link + '</td>';
+					} );
+				} );
+				detail += '</tr>';
+			} );
+			detail += '</tbody></table>';
+
+			$result.html( summary + detail );
+		}
+
+		$run.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$run.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>Scanning...</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.auditScan,
+					nonce: config.nonce,
+					cpt: $cpt.val()
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( ( response && response.data && response.data.message ) || 'Audit failed.' ) + '</p>' );
+						return;
+					}
+					renderTable( response.data || {} );
+				} )
+				.always( function () {
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+
+		// Bulk-add empty language slots for one field/language.
+		$result.on( 'click', '.kdna-rc-audit-bulk', function ( ev ) {
+			ev.preventDefault();
+			var $btn = $( this );
+			var field = $btn.attr( 'data-field' );
+			var lang  = $btn.attr( 'data-lang' );
+			if ( ! window.confirm( 'Seed an empty "' + lang + '" slot on every post missing it? This will mark them on edit screens.' ) ) { return; } // eslint-disable-line no-alert
+			$btn.prop( 'disabled', true );
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.auditBulkAdd,
+					nonce: config.nonce,
+					field: field,
+					language: lang,
+					cpt: $cpt.val()
+				}
+			} ).done( function ( response ) {
+				if ( response && response.success ) {
+					$btn.replaceWith( '<em>' + ( response.data && response.data.message || 'Seeded.' ) + '</em>' );
+				} else {
+					$btn.prop( 'disabled', false );
+					window.alert( ( response && response.data && response.data.message ) || 'Bulk add failed.' ); // eslint-disable-line no-alert
+				}
+			} );
+		} );
+	}
+
+	// =====================================================================
+	// Tools tab : Migrate Field to Multilingual
+	// =====================================================================
+
+	function bindMigrationTool() {
+		var $cpt    = $( '#kdna-rc-mig-cpt' );
+		var $field  = $( '#kdna-rc-mig-field' );
+		var $target = $( '#kdna-rc-mig-target' );
+		var $run    = $( '#kdna-rc-mig-run' );
+		if ( ! $cpt.length || ! $run.length ) { return; }
+
+		var $progress = $( '.kdna-rc-migrate-progress' );
+		var $barFill  = $( '.kdna-rc-migrate-bar-fill' );
+		var $status   = $( '.kdna-rc-migrate-status' );
+		var $result   = $( '.kdna-rc-migrate-result' );
+		var $spinner  = $run.parent().find( '.kdna-rc-spinner' );
+
+		// Repopulate the source field dropdown when the CPT changes.
+		$cpt.on( 'change', function () {
+			var post_type = $cpt.val();
+			$field.prop( 'disabled', true ).empty().append( '<option value="">Loading...</option>' );
+			$run.prop( 'disabled', true );
+
+			if ( ! post_type ) {
+				$field.empty().append( '<option value="">Pick a CPT first</option>' );
+				return;
+			}
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationFields,
+					nonce: config.nonce,
+					post_type: post_type
+				}
+			} ).done( function ( response ) {
+				if ( ! response || ! response.success ) {
+					$field.empty().append( '<option value="">No fields available</option>' );
+					return;
+				}
+				var fields = response.data && response.data.fields ? response.data.fields : {};
+				$field.empty().append( '<option value="">Select a field...</option>' ).prop( 'disabled', false );
+				Object.keys( fields ).forEach( function ( key ) {
+					$field.append( '<option value="' + key + '">' + fields[ key ] + '</option>' );
+				} );
+			} );
+		} );
+
+		$field.on( 'change', function () {
+			$run.prop( 'disabled', ! $field.val() );
+		} );
+
+		$run.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			var post_type   = $cpt.val();
+			var field       = $field.val();
+			var target_type = $target.val();
+			if ( ! post_type || ! field || ! target_type ) { return; }
+
+			var prompt = 'This will convert all instances of "' + field + '" on ' + post_type + ' to ' + target_type + '. Existing values become the Default tab content. This cannot be undone except by manual database edit. Continue?';
+			if ( ! window.confirm( prompt ) ) { return; } // eslint-disable-line no-alert
+
+			$run.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$progress.prop( 'hidden', false );
+			$status.text( 'Starting migration...' );
+			$barFill.css( 'width', '0%' );
+			$result.empty();
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationStart,
+					nonce: config.nonce,
+					post_type: post_type,
+					field: field,
+					target_type: target_type
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + ( response && response.data && response.data.message || 'Could not start migration.' ) + '</p>' );
+						$run.prop( 'disabled', false );
+						$spinner.removeClass( 'is-active' );
+						return;
+					}
+					var meta = response.data;
+					if ( meta.batches === 0 ) {
+						$status.text( 'No posts to migrate.' );
+						$run.prop( 'disabled', false );
+						$spinner.removeClass( 'is-active' );
+						return;
+					}
+					runBatch( 0, meta.batches, meta.total, post_type, field, target_type, 0 );
+				} );
+		} );
+
+		function runBatch( batch, total_batches, total_posts, post_type, field, target_type, processed ) {
+			$status.text( 'Migrating batch ' + ( batch + 1 ) + ' of ' + total_batches + '...' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationBatch,
+					nonce: config.nonce,
+					post_type: post_type,
+					field: field,
+					target_type: target_type,
+					batch: batch
+				}
+			} ).done( function ( response ) {
+				if ( ! response || ! response.success ) {
+					$result.html( '<p class="kdna-rc-msg-error">' + ( response && response.data && response.data.message || 'Migration failed.' ) + '</p>' );
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+					return;
+				}
+				var data = response.data;
+				processed += ( data.processed || 0 );
+				var pct = total_posts > 0 ? Math.min( 100, Math.round( ( processed / total_posts ) * 100 ) ) : 100;
+				$barFill.css( 'width', pct + '%' );
+
+				if ( data.is_last ) {
+					var typeMsg = data.type_changed ? ' Field type updated to multilingual.' : ' (Field-type update could not be applied automatically; update manually in JetEngine.)';
+					$result.html( '<p class="kdna-rc-msg-ok">Migrated ' + processed + ' posts. Default values preserved. Languages tabs now available on edit screens.' + typeMsg + '</p>' );
+					$status.text( 'Done.' );
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+					return;
+				}
+
+				runBatch( batch + 1, total_batches, total_posts, post_type, field, target_type, processed );
+			} );
+		}
+	}
 } )( jQuery );

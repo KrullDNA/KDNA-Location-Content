@@ -212,6 +212,200 @@ Flags are rendered via the [flag-icons](https://github.com/lipis/flag-icons) lib
 
 The square `.fis` variant requires the 1×1 SVG set, which is intentionally not bundled to keep the package small. Use the default rectangular `.fi` class.
 
+## Working with JetEngine multilingual fields
+
+KDNA Multilingual fields (Stage 12) store every language's value on a single post meta row as a serialised PHP array:
+
+```php
+array(
+    'default' => 'Source value',
+    'fr'      => 'Valeur en français',
+    'de'      => 'Wert auf Deutsch',
+);
+```
+
+Standard `meta_query` clauses cannot match values **inside** that serialised array. Stage 13 adds adapters that intercept query construction at four layers and rewrite multilingual clauses transparently:
+
+- **JetSmartFilters** — every `meta_query` in the final query args is rewritten via `KDNA_RC_Multilingual_Query_Helper::rewrite_meta_query()`. Filter-widget option labels (checkbox / radio lists) are translated to the visitor's language at render time.
+- **JetSearch** — the search payload is extended with an extra OR group of multilingual clauses so the search term matches inside the visitor's resolved language tab. The General-tab toggle **Search across all language variants** widens this to every language at the cost of a slightly larger query.
+- **JetEngine Query Builder** — the same rewrite is applied to `jet-engine/query-builder/types/posts/get-items-args` and the listing-grid query args.
+- **REST API** — `rest_prepare_{cpt}` filters replace the serialised array in the response with the value resolved against the request's `Accept-Language` header (or `?lang=` query param). For Image fields the response carries `{ id, url }` instead of a bare attachment ID. Append `?multilingual=raw` to any REST URL to bypass the resolver.
+
+**The visitor's language is auto-detected from the `kdna_language` cookie**, so logged-out visitors using JetSearch or browsing a JetEngine listing automatically get language-correct results without any extra wiring.
+
+## Developer guide
+
+The plugin exposes a small public API class for downstream code that needs to opt in to multilingual query rewriting from custom widgets, REST endpoints, or shortcodes.
+
+### `KDNA_RC::translate_query_args( $args, $language = null )`
+
+Walks the `meta_query` (if present) and rewrites every clause whose `key` is a registered KDNA Multilingual field. Non-multilingual clauses pass through untouched.
+
+```php
+$args = KDNA_RC::translate_query_args( array(
+    'post_type'  => 'product',
+    'meta_query' => array(
+        array(
+            'key'   => 'product_category',   // a Stage 12 Multilingual Text field
+            'value' => 'Coffee Maker',
+        ),
+    ),
+) );
+
+$query = new WP_Query( $args );
+```
+
+When `$language` is omitted the helper resolves the visitor's language from the `kdna_language` cookie (or the configured Default Language if no cookie is set).
+
+### `KDNA_RC::resolve_field( $post_id, $meta_key, $language = null )`
+
+Returns the per-language value for a single post + multilingual field, with default-tab fallback when the language tab is empty.
+
+```php
+$summary = KDNA_RC::resolve_field( $post_id, 'product_summary' );
+echo wp_kses_post( $summary );
+```
+
+### `KDNA_RC::is_multilingual_field( $field_name, $cpt = null )`
+
+Returns true when the supplied meta key is registered as a KDNA Multilingual field. Optionally narrows to a single CPT so callers can disambiguate when the same key exists on more than one type.
+
+### Internal helper
+
+`KDNA_RC_Multilingual_Query_Helper` is the engine the public class delegates to. Use it directly when you need to build a single multilingual clause without going through `translate_query_args()`:
+
+```php
+$clause = KDNA_RC_Multilingual_Query_Helper::build_multilingual_meta_clause(
+    'product_category',
+    'Coffee Maker',
+    '=',
+    'fr'
+);
+```
+
+The clause is a standard `meta_query` array shape, ready to drop into any `WP_Query` args.
+
+## Limitations
+
+- **LIKE comparisons against very long Multilingual WYSIWYG bodies are slow** because MySQL still has to scan every `meta_value` row. If you need to filter or search by a translatable field, prefer short Multilingual Text fields (titles, categories, tags) over WYSIWYG bodies. The plugin emits a console warning when a single page packs more than 50 KB of multilingual variant data.
+- **Filter UI option lists** sourced by some JetSmartFilters versions extract labels directly from the raw stored meta. The plugin translates those labels best-effort, but very old JetSmartFilters builds may not pass enough context for the translation step to identify the source meta key. If a label still shows as a serialised string after enabling Stage 13, upgrade JetSmartFilters or rebuild the filter using the JetEngine custom-content provider.
+- **REST API resolution** kicks in only when the consumer sends an `Accept-Language` header that matches a configured language slug, sends `?lang=`, or relies on the configured Default Language fallback. Anonymous consumers without any of those signals receive the configured default tab content.
+- **Audit tool** scans the most recent 500 posts per CPT to keep the page responsive on large sites. Sites with more than that should run the audit per-CPT.
+
+## SEO note
+
+This plugin uses **cookie-based** language switching with no per-language URLs. That means:
+
+- **Search engines see the configured Default Language only.** Googlebot and Bing crawl without a `kdna_language` cookie, so they always receive the default-tab content. Non-default-language content is **not indexed**.
+- **No `hreflang` annotations are emitted** by this plugin because there are no per-language URLs to point at.
+- **For multilingual SEO** (per-language URLs, `hreflang` markers, separate sitemaps), use **WPML** or **Polylang** alongside this plugin. They handle URL routing and SEO; the multilingual field types here can still feed translatable content in either of those frameworks if you wire them up.
+
+This is documented as a locked decision in section 11 of `PROJECT-BRIEF.md`.
+
+## Multilingual SEO
+
+Stage 14 + Stage 15 turn each regional / language URL into a properly differentiated indexable page. There are five layers of behaviour:
+
+```
++-------------------------+
+| Visitor request         |
+| /au/fr/about-us/        |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 14 URL Routing    |   Strips /au/fr/ from REQUEST_URI,
+|                         |   sets kdna_region + kdna_language
+|                         |   cookies, exposes query vars.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 15 Yoast filters  |   On wp_head: substitutes
+|                         |   _yoast_wpseo_*_au and *_fr
+|                         |   suffix-pattern overrides.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 15 hreflang       |   Emits <link rel="alternate"
+|                         |   hreflang="en-AU"...> for every
+|                         |   variant of the post.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 5+ variant render |   Front-end JS reads cookies, swaps
+|                         |   variant content for the matched
+|                         |   region + language.
++-------------------------+
+```
+
+**Storage strategy.** SEO meta uses a **suffix pattern** — `_yoast_wpseo_title_au`, `_yoast_wpseo_metadesc_fr` — separate post meta rows per language / region. This is intentionally different from the Stage 12 Multilingual Field types (which serialise an array onto a single row). Yoast and most third-party SEO tools read meta as plain strings; serialised arrays would break their integrations entirely. Different storage patterns for different concerns: MF for editorial content, suffix pattern for SEO meta.
+
+**Hreflang conventions.** Tags emit `x-default` for the bare URL, `lang-REGION` (e.g. `en-AU`) for combined URLs, the language code alone for language-only URLs, and the region's mapped Default Language combined with the region for region-only URLs. Self-referencing tags are required and always present.
+
+**Sitemap behaviour.** Three modes (configurable on the General tab):
+- **Extend** (recommended): augment Yoast's existing per-post-type sitemap with `xhtml:link` siblings per `<url>` entry.
+- **Supplementary**: parallel sitemap at `/kdna-rc-sitemap.xml`, advertised in `robots.txt` and Yoast's sitemap index.
+- **Disabled**: no sitemap output from this plugin.
+
+## Yoast integration
+
+Targets **Yoast SEO 21.x**. Hooked filters:
+
+| Filter | Purpose |
+| --- | --- |
+| `wpseo_title` | SEO title override (`_yoast_wpseo_title_{slug}`). Language-first resolution. |
+| `wpseo_metadesc` | Meta description override. Language-first. |
+| `wpseo_focuskw` | Focus keyphrase override (used in Yoast's analysis only). |
+| `wpseo_opengraph_title` | OG title override. Language-first. |
+| `wpseo_opengraph_desc` | OG description override. Language-first. |
+| `wpseo_opengraph_image` | OG image (resolves attachment ID → URL). |
+| `wpseo_twitter_title` / `wpseo_twitter_description` / `wpseo_twitter_image` | Twitter card overrides. |
+| `wpseo_canonical` | Canonical URL per the General-tab strategy (bare or each-self-canonical). Per-post canonical override beats both strategies. |
+| `wpseo_replacements` | Custom variable resolver: unwraps Stage 12 Multilingual Field values (`%%cf_my_field%%`) so titles and descriptions render the visitor language tab. |
+| `wpseo_schema_organization` / `wpseo_schema_local_business` | LocalBusiness / Organization regional address + phone overrides. |
+| `wpseo_sitemap_url` | Per-`<url>` extension when sitemap mode is **Extend**. |
+| `wpseo_sitemap_index_links` | Adds `kdna-rc-sitemap.xml` to the sitemap index when mode is **Supplementary**. |
+
+**Resolution priority.** Visitor-facing fields (titles, descriptions, OG / Twitter copy) prefer the language slug over the region slug. Region-bound fields (LocalBusiness address, phone, regional canonical) prefer the region. Bare URL = no override applied, Yoast's defaults pass through unchanged.
+
+**Yoast Premium:** when `WPSEO_PREMIUM_FILE` is defined the plugin defers to Premium's hreflang feature and skips its own output to avoid duplicate tags.
+
+**Known limitations.**
+- Yoast occasionally renames schema-property filter names; the plugin targets the names current at the time of Stage 15 build. If the LocalBusiness override stops appearing on a Yoast major upgrade, check the `wpseo_schema_*` filter names.
+- Product schema overrides are deferred. Submit a feature request if you need per-region pricing / availability in JSON-LD.
+- Sitemap supplementary mode caps at 5000 posts per XML file. Larger sites should use Extend mode.
+
+## When to use this vs WPML
+
+This plugin's URL routing approach works for most sites that need:
+- Region-specific copy on shared posts (US prices, UK prices, AU prices on the same page).
+- Per-language overrides on titles, descriptions, OG tags, and selected content widgets.
+- Multilingual JetEngine custom fields rendered through standard Yoast filters.
+- Cookie + IP detection with optional URL prefix routing.
+
+**Use WPML or Polylang instead when you need:**
+- Separate WordPress posts per language (each translation is its own post in the database, with separate slugs, comments, and revision history).
+- Fully translated taxonomy terms (one term per language, not one term with translated labels).
+- Per-language admin interface for editors who only manage one language.
+- Translation-memory or external translation-service integration.
+- Per-language WooCommerce shop pages, product attributes, or order workflows.
+
+The two approaches are not mutually exclusive — KDNA Regional Content can be installed alongside WPML for sites that want WPML's per-language posts AND KDNA's regional URL routing.
+
+## SEO checklist
+
+After deploying a region / language configuration, work through the post-launch checklist:
+
+1. **Submit each regional sitemap to Google Search Console.** When in **Extend** mode, the regional URLs appear inside Yoast's existing sitemap; when in **Supplementary** mode, submit `https://example.com/kdna-rc-sitemap.xml` separately.
+2. **Configure Geographic Targeting per region in Search Console.** Add one Search Console property per regional subdirectory (e.g. `https://example.com/au/`) and set the country target on each. This is Google's preferred signal for region-specific ranking.
+3. **Validate hreflang in Search Console's International Targeting report.** Watch for missing return tags and unsupported language codes.
+4. **Test rich results for schema.** Run the LocalBusiness page through `https://search.google.com/test/rich-results` and confirm the regional address surfaces correctly when the URL prefix is in place.
+5. **Verify canonical strategy.** View source on `/au/about-us/` and `/about-us/` in turn; the canonical tag should match the strategy you picked (bare-canonical means both URLs point at the bare URL).
+6. **Run the SEO health check** on the Tools tab whenever regions / languages / Yoast settings change.
+
 ## Build status
 
 See `../PROJECT-BRIEF.md` for the full build status table and stage descriptions.

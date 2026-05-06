@@ -231,6 +231,87 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_default_language' )
 		);
 
+		// Stage 13 toggles: search cross-language and REST resolver.
+		add_settings_field(
+			'search_across_all_languages',
+			__( 'Search across all language variants', 'kdna-regional-content' ),
+			array( $this, 'render_field_search_across_all' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_languages_general',
+			array( 'label_for' => 'kdna_rc_search_across_all_languages' )
+		);
+
+		add_settings_field(
+			'rest_resolve_multilingual',
+			__( 'Resolve Multilingual fields in REST API by Accept-Language header', 'kdna-regional-content' ),
+			array( $this, 'render_field_rest_resolve_multilingual' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_languages_general',
+			array( 'label_for' => 'kdna_rc_rest_resolve_multilingual' )
+		);
+
+		// Stage 14: URL routing settings (canonical strategy, redirects,
+		// eligible post types). Live in their own section to keep the
+		// General tab readable.
+		add_settings_section(
+			'kdna_rc_section_url_routing',
+			__( 'URL Routing & SEO', 'kdna-regional-content' ),
+			array( $this, 'render_section_url_routing' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'canonical_strategy',
+			__( 'Canonical URL strategy', 'kdna-regional-content' ),
+			array( $this, 'render_field_canonical_strategy' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing'
+		);
+
+		add_settings_field(
+			'redirect_bare_to_region',
+			__( 'Redirect bare URLs to regional URLs', 'kdna-regional-content' ),
+			array( $this, 'render_field_redirect_bare_region' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing',
+			array( 'label_for' => 'kdna_rc_redirect_bare_to_region' )
+		);
+
+		add_settings_field(
+			'redirect_bare_to_language',
+			__( 'Redirect bare URLs to language URLs', 'kdna-regional-content' ),
+			array( $this, 'render_field_redirect_bare_language' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing',
+			array( 'label_for' => 'kdna_rc_redirect_bare_to_language' )
+		);
+
+		add_settings_field(
+			'url_routing_post_types',
+			__( 'Post types eligible for regional / language URLs', 'kdna-regional-content' ),
+			array( $this, 'render_field_url_routing_post_types' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing'
+		);
+
+		// Stage 15 SEO settings.
+		add_settings_field(
+			'hreflang_enabled',
+			__( 'Generate hreflang tags', 'kdna-regional-content' ),
+			array( $this, 'render_field_hreflang_enabled' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing',
+			array( 'label_for' => 'kdna_rc_hreflang_enabled' )
+		);
+
+		add_settings_field(
+			'sitemap_mode',
+			__( 'Sitemap integration mode', 'kdna-regional-content' ),
+			array( $this, 'render_field_sitemap_mode' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing'
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -368,6 +449,47 @@ class KDNA_RC_Settings {
 			if ( '' === $value || null !== $languages_handler->get( $value ) ) {
 				$clean['default_language'] = $value;
 			}
+		}
+
+		// Stage 13 toggles. Hidden presence flags so an unticked checkbox
+		// saves cleanly as false.
+		if ( array_key_exists( 'search_across_all_languages_present', $input ) ) {
+			$clean['search_across_all_languages'] = ! empty( $input['search_across_all_languages'] );
+		}
+		if ( array_key_exists( 'rest_resolve_multilingual_present', $input ) ) {
+			$clean['rest_resolve_multilingual'] = ! empty( $input['rest_resolve_multilingual'] );
+		}
+
+		// Stage 14 URL routing.
+		if ( array_key_exists( 'canonical_strategy', $input ) ) {
+			$value = sanitize_key( wp_unslash( $input['canonical_strategy'] ) );
+			$clean['canonical_strategy'] = ( 'each' === $value ) ? 'each' : 'bare';
+		}
+		if ( array_key_exists( 'redirect_bare_to_region_present', $input ) ) {
+			$clean['redirect_bare_to_region'] = ! empty( $input['redirect_bare_to_region'] );
+		}
+		if ( array_key_exists( 'redirect_bare_to_language_present', $input ) ) {
+			$clean['redirect_bare_to_language'] = ! empty( $input['redirect_bare_to_language'] );
+		}
+		if ( array_key_exists( 'url_routing_post_types_present', $input ) ) {
+			$raw   = isset( $input['url_routing_post_types'] ) && is_array( $input['url_routing_post_types'] ) ? $input['url_routing_post_types'] : array();
+			$valid = array();
+			foreach ( $raw as $slug ) {
+				$slug = sanitize_key( $slug );
+				if ( $slug && post_type_exists( $slug ) && ! in_array( $slug, $valid, true ) ) {
+					$valid[] = $slug;
+				}
+			}
+			$clean['url_routing_post_types'] = $valid;
+		}
+
+		// Stage 15 SEO settings.
+		if ( array_key_exists( 'hreflang_enabled_present', $input ) ) {
+			$clean['hreflang_enabled'] = ! empty( $input['hreflang_enabled'] );
+		}
+		if ( array_key_exists( 'sitemap_mode', $input ) ) {
+			$mode = sanitize_key( wp_unslash( $input['sitemap_mode'] ) );
+			$clean['sitemap_mode'] = in_array( $mode, array( 'extend', 'supplementary', 'disabled' ), true ) ? $mode : 'extend';
 		}
 
 		return $clean;
@@ -694,6 +816,201 @@ class KDNA_RC_Settings {
 	}
 
 	/**
+	 * Render the Search across all language variants checkbox (Stage 13).
+	 *
+	 * @return void
+	 */
+	public function render_field_search_across_all() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['search_across_all_languages'] );
+
+		printf(
+			'<input type="hidden" name="%1$s[search_across_all_languages_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_search_across_all_languages" name="%1$s[search_across_all_languages]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Match search terms against every configured language, not only the visitor\'s current language.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Off by default. Useful for sites where users search in mixed languages, but increases query cost.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the REST API resolver checkbox (Stage 13).
+	 *
+	 * @return void
+	 */
+	public function render_field_rest_resolve_multilingual() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = array_key_exists( 'rest_resolve_multilingual', (array) $settings ) ? (bool) $settings['rest_resolve_multilingual'] : true;
+
+		printf(
+			'<input type="hidden" name="%1$s[rest_resolve_multilingual_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_rest_resolve_multilingual" name="%1$s[rest_resolve_multilingual]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Replace serialised Multilingual values in REST responses with the language matching the request\'s Accept-Language header.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'On by default. Append ?multilingual=raw to a REST URL to bypass the resolver and receive the raw serialised array instead.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the introductory copy for the URL Routing & SEO section.
+	 *
+	 * @return void
+	 */
+	public function render_section_url_routing() {
+		echo '<p>' . esc_html__( 'Lets every post be reachable at a regional or language URL prefix (for example /au/about/, /fr/about/, /au/fr/about/). The URL prefix forces the visitor cookie and overrides IP / browser detection. Bare URLs continue to work as today.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the canonical strategy radio.
+	 *
+	 * @return void
+	 */
+	public function render_field_canonical_strategy() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['canonical_strategy'] ) && 'each' === $settings['canonical_strategy'] ? 'each' : 'bare';
+
+		$choices = array(
+			'bare' => __( 'Bare URL is canonical (recommended for most sites)', 'kdna-regional-content' ),
+			'each' => __( 'Each regional URL is its own canonical', 'kdna-regional-content' ),
+		);
+		echo '<fieldset>';
+		foreach ( $choices as $value => $label ) {
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[canonical_strategy]" value="%2$s"%3$s /> %4$s</label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $value ),
+				checked( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Stored in Stage 14; the canonical tag is emitted in Stage 15 (Yoast integration). The "Bare URL is canonical" option avoids duplicate-content concerns and pairs with hreflang annotations. The "Each is its own canonical" option is stronger for regional ranking signals but only safe when content varies substantially per region.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the bare-to-region redirect toggle.
+	 *
+	 * @return void
+	 */
+	public function render_field_redirect_bare_region() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['redirect_bare_to_region'] );
+
+		printf( '<input type="hidden" name="%1$s[redirect_bare_to_region_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_redirect_bare_to_region" name="%1$s[redirect_bare_to_region]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Redirect bare URLs (e.g. /about-us/) to the visitor\'s detected regional URL (e.g. /au/about-us/) when the cookie is set.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Off by default. Crawlers (Googlebot, Bingbot, etc.) are never redirected so they index whatever URL they were sent to.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the bare-to-language redirect toggle.
+	 *
+	 * @return void
+	 */
+	public function render_field_redirect_bare_language() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['redirect_bare_to_language'] );
+
+		printf( '<input type="hidden" name="%1$s[redirect_bare_to_language_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_redirect_bare_to_language" name="%1$s[redirect_bare_to_language]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Redirect bare URLs to the visitor\'s detected language URL when the cookie is set. Crawlers exempt.', 'kdna-regional-content' )
+		);
+	}
+
+	/**
+	 * Render the post-type whitelist.
+	 *
+	 * @return void
+	 */
+	public function render_field_url_routing_post_types() {
+		$settings   = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$selected   = isset( $settings['url_routing_post_types'] ) ? (array) $settings['url_routing_post_types'] : array();
+		$idx        = array_flip( $selected );
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+
+		printf( '<input type="hidden" name="%1$s[url_routing_post_types_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+
+		echo '<fieldset>';
+		foreach ( $post_types as $type ) {
+			$slug    = (string) $type->name;
+			$label   = isset( $type->labels->singular_name ) ? (string) $type->labels->singular_name : $slug;
+			$checked = isset( $idx[ $slug ] ) ? ' checked' : '';
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="checkbox" name="%1$s[url_routing_post_types][]" value="%2$s"%3$s /> %4$s <code style="font-size:11px; color:#6c7079;">%2$s</code></label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $slug ),
+				$checked,
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Tick the post types that should expose regional / language URLs. Unticked types only resolve at the bare URL. Leave everything unticked to allow every public post type (the default).', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the hreflang toggle (Stage 15).
+	 *
+	 * @return void
+	 */
+	public function render_field_hreflang_enabled() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! array_key_exists( 'hreflang_enabled', (array) $settings ) || ! empty( $settings['hreflang_enabled'] );
+
+		printf( '<input type="hidden" name="%1$s[hreflang_enabled_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_hreflang_enabled" name="%1$s[hreflang_enabled]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Emit <link rel="alternate" hreflang="..."> tags for every region / language URL variant on singular pages.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'On by default. Yoast Premium users with hreflang management enabled can leave this off; the plugin auto-detects Yoast Premium and skips its own output to avoid duplicate tags.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the sitemap-mode radio (Stage 15).
+	 *
+	 * @return void
+	 */
+	public function render_field_sitemap_mode() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['sitemap_mode'] ) ? (string) $settings['sitemap_mode'] : 'extend';
+
+		$choices = array(
+			'extend'        => __( 'Extend Yoast sitemap (recommended)', 'kdna-regional-content' ),
+			'supplementary' => __( 'Supplementary /kdna-rc-sitemap.xml', 'kdna-regional-content' ),
+			'disabled'      => __( 'Disabled', 'kdna-regional-content' ),
+		);
+
+		echo '<fieldset>';
+		foreach ( $choices as $value => $label ) {
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[sitemap_mode]" value="%2$s"%3$s /> %4$s</label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $value ),
+				checked( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Extend mode injects xhtml:link siblings into Yoast\'s existing per-post-type sitemap. Supplementary mode adds a parallel /kdna-rc-sitemap.xml referenced from robots.txt and Yoast\'s sitemap index.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
 	 * Render the introductory copy for the auto-update schedule section.
 	 *
 	 * @return void
@@ -791,6 +1108,13 @@ class KDNA_RC_Settings {
 					'deleteLanguage'     => KDNA_RC_Languages::AJAX_DELETE,
 					'reorderLanguages'   => KDNA_RC_Languages::AJAX_REORDER,
 					'testLangDetection'  => KDNA_RC_Language_Detector::AJAX_TEST_ACTION,
+					'migrationFields'    => 'kdna_rc_migration_fields',
+					'migrationStart'     => KDNA_RC_Migration_Tool::AJAX_START,
+					'migrationBatch'     => KDNA_RC_Migration_Tool::AJAX_BATCH,
+					'auditScan'          => KDNA_RC_Field_Audit_Tool::AJAX_SCAN,
+					'auditBulkAdd'       => KDNA_RC_Field_Audit_Tool::AJAX_BULK_ADD,
+					'flushRules'         => KDNA_RC_URL_Routing::AJAX_FLUSH,
+					'seoHealthCheck'     => KDNA_RC_SEO_Health_Check::AJAX_ACTION,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
