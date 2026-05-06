@@ -63,9 +63,6 @@ class KDNA_RC_SEO_Meta_Box {
 			'_yoast_wpseo_opengraph-title'   => array( 'label' => __( 'OG Title', 'kdna-regional-content' ), 'type' => 'text' ),
 			'_yoast_wpseo_opengraph-description' => array( 'label' => __( 'OG Description', 'kdna-regional-content' ), 'type' => 'textarea' ),
 			'_yoast_wpseo_opengraph-image-id' => array( 'label' => __( 'OG Image', 'kdna-regional-content' ), 'type' => 'media' ),
-			'_yoast_wpseo_twitter-title'     => array( 'label' => __( 'Twitter Title', 'kdna-regional-content' ), 'type' => 'text' ),
-			'_yoast_wpseo_twitter-description' => array( 'label' => __( 'Twitter Description', 'kdna-regional-content' ), 'type' => 'textarea' ),
-			'_yoast_wpseo_twitter-image-id'  => array( 'label' => __( 'Twitter Image', 'kdna-regional-content' ), 'type' => 'media' ),
 			'_yoast_wpseo_localbusiness_address' => array( 'label' => __( 'Local Business Address', 'kdna-regional-content' ), 'type' => 'textarea' ),
 			'_yoast_wpseo_localbusiness_phone' => array( 'label' => __( 'Local Business Phone', 'kdna-regional-content' ), 'type' => 'text' ),
 		);
