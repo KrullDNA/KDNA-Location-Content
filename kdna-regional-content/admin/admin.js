@@ -1037,5 +1037,148 @@
 		bindClearCaches();
 		bindLanguagesTab();
 		bindTestLanguageDetection();
+		bindMigrationTool();
 	} );
+
+	// =====================================================================
+	// Tools tab : Migrate Field to Multilingual
+	// =====================================================================
+
+	function bindMigrationTool() {
+		var $cpt    = $( '#kdna-rc-mig-cpt' );
+		var $field  = $( '#kdna-rc-mig-field' );
+		var $target = $( '#kdna-rc-mig-target' );
+		var $run    = $( '#kdna-rc-mig-run' );
+		if ( ! $cpt.length || ! $run.length ) { return; }
+
+		var $progress = $( '.kdna-rc-migrate-progress' );
+		var $barFill  = $( '.kdna-rc-migrate-bar-fill' );
+		var $status   = $( '.kdna-rc-migrate-status' );
+		var $result   = $( '.kdna-rc-migrate-result' );
+		var $spinner  = $run.parent().find( '.kdna-rc-spinner' );
+
+		// Repopulate the source field dropdown when the CPT changes.
+		$cpt.on( 'change', function () {
+			var post_type = $cpt.val();
+			$field.prop( 'disabled', true ).empty().append( '<option value="">Loading...</option>' );
+			$run.prop( 'disabled', true );
+
+			if ( ! post_type ) {
+				$field.empty().append( '<option value="">Pick a CPT first</option>' );
+				return;
+			}
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationFields,
+					nonce: config.nonce,
+					post_type: post_type
+				}
+			} ).done( function ( response ) {
+				if ( ! response || ! response.success ) {
+					$field.empty().append( '<option value="">No fields available</option>' );
+					return;
+				}
+				var fields = response.data && response.data.fields ? response.data.fields : {};
+				$field.empty().append( '<option value="">Select a field...</option>' ).prop( 'disabled', false );
+				Object.keys( fields ).forEach( function ( key ) {
+					$field.append( '<option value="' + key + '">' + fields[ key ] + '</option>' );
+				} );
+			} );
+		} );
+
+		$field.on( 'change', function () {
+			$run.prop( 'disabled', ! $field.val() );
+		} );
+
+		$run.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			var post_type   = $cpt.val();
+			var field       = $field.val();
+			var target_type = $target.val();
+			if ( ! post_type || ! field || ! target_type ) { return; }
+
+			var prompt = 'This will convert all instances of "' + field + '" on ' + post_type + ' to ' + target_type + '. Existing values become the Default tab content. This cannot be undone except by manual database edit. Continue?';
+			if ( ! window.confirm( prompt ) ) { return; } // eslint-disable-line no-alert
+
+			$run.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$progress.prop( 'hidden', false );
+			$status.text( 'Starting migration...' );
+			$barFill.css( 'width', '0%' );
+			$result.empty();
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationStart,
+					nonce: config.nonce,
+					post_type: post_type,
+					field: field,
+					target_type: target_type
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + ( response && response.data && response.data.message || 'Could not start migration.' ) + '</p>' );
+						$run.prop( 'disabled', false );
+						$spinner.removeClass( 'is-active' );
+						return;
+					}
+					var meta = response.data;
+					if ( meta.batches === 0 ) {
+						$status.text( 'No posts to migrate.' );
+						$run.prop( 'disabled', false );
+						$spinner.removeClass( 'is-active' );
+						return;
+					}
+					runBatch( 0, meta.batches, meta.total, post_type, field, target_type, 0 );
+				} );
+		} );
+
+		function runBatch( batch, total_batches, total_posts, post_type, field, target_type, processed ) {
+			$status.text( 'Migrating batch ' + ( batch + 1 ) + ' of ' + total_batches + '...' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.migrationBatch,
+					nonce: config.nonce,
+					post_type: post_type,
+					field: field,
+					target_type: target_type,
+					batch: batch
+				}
+			} ).done( function ( response ) {
+				if ( ! response || ! response.success ) {
+					$result.html( '<p class="kdna-rc-msg-error">' + ( response && response.data && response.data.message || 'Migration failed.' ) + '</p>' );
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+					return;
+				}
+				var data = response.data;
+				processed += ( data.processed || 0 );
+				var pct = total_posts > 0 ? Math.min( 100, Math.round( ( processed / total_posts ) * 100 ) ) : 100;
+				$barFill.css( 'width', pct + '%' );
+
+				if ( data.is_last ) {
+					var typeMsg = data.type_changed ? ' Field type updated to multilingual.' : ' (Field-type update could not be applied automatically; update manually in JetEngine.)';
+					$result.html( '<p class="kdna-rc-msg-ok">Migrated ' + processed + ' posts. Default values preserved. Languages tabs now available on edit screens.' + typeMsg + '</p>' );
+					$status.text( 'Done.' );
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+					return;
+				}
+
+				runBatch( batch + 1, total_batches, total_posts, post_type, field, target_type, processed );
+			} );
+		}
+	}
 } )( jQuery );

@@ -268,6 +268,81 @@
 	// whose value does not include the visitor's language. Region
 	// restriction (data-kdna-show-in) keeps using the existing visibility
 	// filter pass; both can apply to the same element.
+	// Stage 12: swap multilingual JetEngine field widget content based on
+	// the resolved visitor language. Each .kdna-rc-mlf element carries
+	// data-kdna-mlf-{slug} attributes for every language that has a
+	// non-empty value. When the visitor's language matches one, swap the
+	// visible content; otherwise leave the default in place.
+	//
+	// For Image and Link widgets the swap also touches sibling attributes
+	// (data-kdna-mlf-alt-{slug}, data-kdna-mlf-text-{slug}). For WYSIWYG
+	// widgets the data attribute is base64-encoded HTML (wrapper carries
+	// data-kdna-mlf-encoded="1").
+	function applyMultilingualFields( language ) {
+		if ( ! language ) { return; }
+
+		var nodes = document.querySelectorAll( '.kdna-rc-mlf' );
+		var totalBytes = 0;
+
+		for ( var i = 0; i < nodes.length; i++ ) {
+			var node = nodes[ i ];
+
+			// Sum up the data-kdna-mlf-* payload size for the warning.
+			for ( var a = 0; a < node.attributes.length; a++ ) {
+				var attr = node.attributes[ a ];
+				if ( attr.name.indexOf( 'data-kdna-mlf-' ) === 0 ) {
+					totalBytes += attr.value.length;
+				}
+			}
+
+			var encoded = node.getAttribute( 'data-kdna-mlf-encoded' ) === '1';
+			var swap = node.getAttribute( 'data-kdna-mlf-' + language );
+
+			// Detect widget shape by what is inside the wrapper.
+			var imgEl  = node.querySelector( ':scope > img' );
+			var linkEl = node.querySelector( ':scope > a' );
+
+			if ( imgEl ) {
+				if ( swap ) {
+					imgEl.setAttribute( 'src', swap );
+					var altSwap = node.getAttribute( 'data-kdna-mlf-alt-' + language );
+					if ( altSwap !== null ) {
+						imgEl.setAttribute( 'alt', altSwap );
+					}
+				}
+				continue;
+			}
+
+			if ( linkEl ) {
+				var urlSwap  = node.getAttribute( 'data-kdna-mlf-url-' + language );
+				var textSwap = node.getAttribute( 'data-kdna-mlf-text-' + language );
+				if ( urlSwap )  { linkEl.setAttribute( 'href', urlSwap ); }
+				if ( textSwap ) { linkEl.textContent = textSwap; }
+				continue;
+			}
+
+			// Text or WYSIWYG node: replace inner content directly.
+			if ( swap ) {
+				if ( encoded ) {
+					try {
+						node.innerHTML = window.atob( swap );
+					} catch ( err ) {
+						node.textContent = swap;
+					}
+				} else {
+					node.textContent = swap;
+				}
+			}
+		}
+
+		if ( totalBytes > 50 * 1024 && window.console && window.console.warn ) {
+			window.console.warn(
+				'[KDNA RC] Page contains ' + Math.round( totalBytes / 1024 ) +
+				'KB of multilingual variant data, consider reducing field count or content length on this page.'
+			);
+		}
+	}
+
 	function applyLanguageVisibilityFilter( language ) {
 		var nodes = document.querySelectorAll( '[data-kdna-show-in-languages]' );
 		for ( var i = 0; i < nodes.length; i++ ) {
@@ -299,6 +374,7 @@
 		document.documentElement.setAttribute( 'data-kdna-language', slug );
 		applyVariantSwap( window.kdnaRCResolved.region || '', slug );
 		applyLanguageVisibilityFilter( slug );
+		applyMultilingualFields( slug );
 
 		try {
 			document.dispatchEvent( new CustomEvent( 'kdna-rc-language-changed', { detail: { slug: slug } } ) );
@@ -509,6 +585,7 @@
 		// variants visible on first paint.
 		applyVariantSwap( window.kdnaRCResolved.region || '', slug );
 		applyLanguageVisibilityFilter( slug );
+		applyMultilingualFields( slug );
 
 		clearPendingIfReady();
 	}

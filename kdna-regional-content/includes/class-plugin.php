@@ -195,6 +195,18 @@ final class KDNA_RC_Plugin {
 		add_action( 'elementor/elements/categories_registered', array( $this, 'register_elementor_category' ) );
 		add_action( 'elementor/widgets/register', array( $this, 'register_elementor_widgets' ) );
 
+		// Stage 12: register multilingual JetEngine field types + their
+		// admin assets. The classes silently skip themselves when JetEngine
+		// is absent, so this is safe to run unconditionally.
+		( new KDNA_RC_Multilingual_Text_Field() )->init();
+		( new KDNA_RC_Multilingual_Image_Field() )->init();
+		( new KDNA_RC_Multilingual_WYSIWYG_Field() )->init();
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_multilingual_admin_assets' ) );
+
+		// Stage 12 migration tool. Backs the Tools-tab Migrate UI.
+		( new KDNA_RC_Migration_Tool() )->init();
+		add_action( 'wp_ajax_kdna_rc_migration_fields', array( $this, 'ajax_migration_fields' ) );
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.
@@ -339,5 +351,79 @@ final class KDNA_RC_Plugin {
 		if ( class_exists( 'KDNA_RC_Language_Selector_Widget' ) ) {
 			$widgets_manager->register( new KDNA_RC_Language_Selector_Widget() );
 		}
+
+		// Stage 12 dynamic multilingual widgets.
+		if ( class_exists( 'KDNA_RC_Dynamic_Multilingual_Field_Widget' ) ) {
+			$widgets_manager->register( new KDNA_RC_Dynamic_Multilingual_Field_Widget() );
+		}
+		if ( class_exists( 'KDNA_RC_Dynamic_Multilingual_Image_Widget' ) ) {
+			$widgets_manager->register( new KDNA_RC_Dynamic_Multilingual_Image_Widget() );
+		}
+		if ( class_exists( 'KDNA_RC_Dynamic_Multilingual_Link_Widget' ) ) {
+			$widgets_manager->register( new KDNA_RC_Dynamic_Multilingual_Link_Widget() );
+		}
+	}
+
+	/**
+	 * Enqueue the multilingual field tabbed-editor assets on post edit
+	 * screens that may host JetEngine meta boxes.
+	 *
+	 * Only enqueues the WordPress media library when the post-edit screen
+	 * is in scope so we do not bloat unrelated admin pages.
+	 *
+	 * @param string $hook_suffix Current admin page hook.
+	 * @return void
+	 */
+	public function enqueue_multilingual_admin_assets( $hook_suffix ) {
+		if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
+			return;
+		}
+
+		// Required so the Image-field tab can open the WP media library.
+		if ( function_exists( 'wp_enqueue_media' ) ) {
+			wp_enqueue_media();
+		}
+
+		wp_enqueue_style(
+			'kdna-rc-mlf',
+			KDNA_RC_PLUGIN_URL . 'assets/css/multilingual-fields.css',
+			array( 'kdna-rc-flag-icons' ),
+			KDNA_RC_VERSION
+		);
+
+		// flag-icons is admin-page-only by default; ensure it is present
+		// here too so tabs render their flag glyph on the post-edit screen.
+		if ( ! wp_style_is( 'kdna-rc-flag-icons', 'enqueued' ) ) {
+			wp_enqueue_style(
+				'kdna-rc-flag-icons',
+				KDNA_RC_PLUGIN_URL . 'lib/flag-icons/css/flag-icons.min.css',
+				array(),
+				'7.5.0'
+			);
+		}
+
+		wp_enqueue_script(
+			'kdna-rc-mlf',
+			KDNA_RC_PLUGIN_URL . 'assets/js/multilingual-fields.js',
+			array( 'jquery' ),
+			KDNA_RC_VERSION,
+			true
+		);
+	}
+
+	/**
+	 * AJAX: list JetEngine simple-text fields (Text/Textarea/WYSIWYG) for
+	 * the Tools-tab migration UI's Source field dropdown.
+	 *
+	 * @return void
+	 */
+	public function ajax_migration_fields() {
+		check_ajax_referer( 'kdna_rc_admin', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'kdna-regional-content' ) ), 403 );
+		}
+		$post_type = isset( $_POST['post_type'] ) ? sanitize_key( wp_unslash( $_POST['post_type'] ) ) : '';
+		$fields    = '' !== $post_type ? KDNA_RC_Migration_Tool::discover_simple_fields( $post_type ) : array();
+		wp_send_json_success( array( 'fields' => $fields ) );
 	}
 }

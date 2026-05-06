@@ -791,6 +791,9 @@ class KDNA_RC_Settings {
 					'deleteLanguage'     => KDNA_RC_Languages::AJAX_DELETE,
 					'reorderLanguages'   => KDNA_RC_Languages::AJAX_REORDER,
 					'testLangDetection'  => KDNA_RC_Language_Detector::AJAX_TEST_ACTION,
+					'migrationFields'    => 'kdna_rc_migration_fields',
+					'migrationStart'     => KDNA_RC_Migration_Tool::AJAX_START,
+					'migrationBatch'     => KDNA_RC_Migration_Tool::AJAX_BATCH,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
