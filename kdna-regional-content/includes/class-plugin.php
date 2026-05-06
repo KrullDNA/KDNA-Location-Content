@@ -411,23 +411,27 @@ final class KDNA_RC_Plugin {
 			wp_enqueue_media();
 		}
 
-		wp_enqueue_style(
-			'kdna-rc-mlf',
-			KDNA_RC_PLUGIN_URL . 'assets/css/multilingual-fields.css',
-			array( 'kdna-rc-flag-icons' ),
-			KDNA_RC_VERSION
-		);
-
-		// flag-icons is admin-page-only by default; ensure it is present
-		// here too so tabs render their flag glyph on the post-edit screen.
-		if ( ! wp_style_is( 'kdna-rc-flag-icons', 'enqueued' ) ) {
+		// flag-icons must be registered BEFORE kdna-rc-mlf because
+		// kdna-rc-mlf declares it as a dependency. WP 6.9.1 warns when a
+		// style is enqueued with an unregistered dependency, so we
+		// register/enqueue this one first.
+		if ( ! wp_style_is( 'kdna-rc-flag-icons', 'registered' ) ) {
 			wp_enqueue_style(
 				'kdna-rc-flag-icons',
 				KDNA_RC_PLUGIN_URL . 'lib/flag-icons/css/flag-icons.min.css',
 				array(),
 				'7.5.0'
 			);
+		} elseif ( ! wp_style_is( 'kdna-rc-flag-icons', 'enqueued' ) ) {
+			wp_enqueue_style( 'kdna-rc-flag-icons' );
 		}
+
+		wp_enqueue_style(
+			'kdna-rc-mlf',
+			KDNA_RC_PLUGIN_URL . 'assets/css/multilingual-fields.css',
+			array( 'kdna-rc-flag-icons' ),
+			KDNA_RC_VERSION
+		);
 
 		wp_enqueue_script(
 			'kdna-rc-mlf',
