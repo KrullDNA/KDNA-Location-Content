@@ -56,15 +56,51 @@ class KDNA_RC_SEO_Meta_Box {
 	 */
 	public static function fields() {
 		return array(
-			'_yoast_wpseo_title'             => array( 'label' => __( 'SEO Title', 'kdna-regional-content' ), 'type' => 'text' ),
-			'_yoast_wpseo_metadesc'          => array( 'label' => __( 'Meta Description', 'kdna-regional-content' ), 'type' => 'textarea' ),
-			'_yoast_wpseo_focuskw'           => array( 'label' => __( 'Focus Keyphrase', 'kdna-regional-content' ), 'type' => 'text' ),
-			'_yoast_wpseo_canonical'         => array( 'label' => __( 'Canonical URL', 'kdna-regional-content' ), 'type' => 'url' ),
-			'_yoast_wpseo_opengraph-title'   => array( 'label' => __( 'OG Title', 'kdna-regional-content' ), 'type' => 'text' ),
-			'_yoast_wpseo_opengraph-description' => array( 'label' => __( 'OG Description', 'kdna-regional-content' ), 'type' => 'textarea' ),
-			'_yoast_wpseo_opengraph-image-id' => array( 'label' => __( 'OG Image', 'kdna-regional-content' ), 'type' => 'media' ),
-			'_yoast_wpseo_localbusiness_address' => array( 'label' => __( 'Local Business Address', 'kdna-regional-content' ), 'type' => 'textarea' ),
-			'_yoast_wpseo_localbusiness_phone' => array( 'label' => __( 'Local Business Phone', 'kdna-regional-content' ), 'type' => 'text' ),
+			'_yoast_wpseo_title' => array(
+				'label' => __( 'SEO Title', 'kdna-regional-content' ),
+				'type'  => 'text',
+				'help'  => __( 'Optional override. Leave blank to keep Yoast\'s SEO title for this region or language.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_metadesc' => array(
+				'label' => __( 'Meta Description', 'kdna-regional-content' ),
+				'type'  => 'textarea',
+				'help'  => __( 'Optional override. Leave blank to keep Yoast\'s meta description.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_focuskw' => array(
+				'label' => __( 'Focus Keyphrase', 'kdna-regional-content' ),
+				'type'  => 'text',
+				'help'  => __( 'Optional override. Used by Yoast\'s readability analysis only. Leave blank in most cases.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_canonical' => array(
+				'label' => __( 'Canonical URL', 'kdna-regional-content' ),
+				'type'  => 'url',
+				'help'  => __( 'Leave blank. The canonical URL is generated automatically from the Canonical Strategy setting in Regional Content > General. Only fill this in for the rare case where one region needs to canonicalise to a completely different URL.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_opengraph-title' => array(
+				'label' => __( 'OG Title', 'kdna-regional-content' ),
+				'type'  => 'text',
+				'help'  => __( 'Optional override for social share previews (Facebook, LinkedIn, WhatsApp, Slack, X, etc.). Leave blank to fall back to the SEO Title above, then the post title.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_opengraph-description' => array(
+				'label' => __( 'OG Description', 'kdna-regional-content' ),
+				'type'  => 'textarea',
+				'help'  => __( 'Optional override for social share previews. Leave blank to fall back to the Meta Description above, then the post excerpt.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_opengraph-image-id' => array(
+				'label' => __( 'OG Image', 'kdna-regional-content' ),
+				'type'  => 'media',
+				'help'  => __( 'Optional override for the image shown in social share previews. Leave blank to fall back to the post\'s Featured Image.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_localbusiness_address' => array(
+				'label' => __( 'Local Business Address', 'kdna-regional-content' ),
+				'type'  => 'textarea',
+				'help'  => __( 'Per-region override for the LocalBusiness schema address. Leave blank to use the site-wide address from Yoast > Settings > Schema.', 'kdna-regional-content' ),
+			),
+			'_yoast_wpseo_localbusiness_phone' => array(
+				'label' => __( 'Local Business Phone', 'kdna-regional-content' ),
+				'type'  => 'text',
+				'help'  => __( 'Per-region override for the LocalBusiness schema phone number. Leave blank to use the site-wide value.', 'kdna-regional-content' ),
+			),
 		);
 	}
 
@@ -194,7 +230,7 @@ class KDNA_RC_SEO_Meta_Box {
 		if ( $is_default ) {
 			echo '<p class="description">' . esc_html__( 'These are the values Yoast SEO currently uses for this post. Edit them on the Yoast meta box above. They are the fall-back when a region or language tab leaves a field blank.', 'kdna-regional-content' ) . '</p>';
 		} else {
-			echo '<p class="description">' . esc_html__( 'Override Yoast values for visitors arriving via this region or language URL. Leave a field blank to keep the Default value.', 'kdna-regional-content' ) . '</p>';
+			echo '<div class="notice notice-info inline" style="margin:6px 0 14px; padding:8px 12px;"><p style="margin:0;"><strong>' . esc_html__( 'Most posts: leave every field blank.', 'kdna-regional-content' ) . '</strong> ' . esc_html__( 'These are optional overrides for visitors arriving via this region or language URL. When a field is blank, the plugin falls back to the Default tab values, then to Yoast / WordPress defaults (post title, featured image, etc.). Each field below explains its own fall-back chain.', 'kdna-regional-content' ) . '</p></div>';
 		}
 
 		echo '<table class="form-table"><tbody>';
@@ -207,8 +243,15 @@ class KDNA_RC_SEO_Meta_Box {
 
 			echo '<tr><th scope="row"><label>' . esc_html( $cfg['label'] ) . '</label></th><td>';
 			$this->render_input( $cfg['type'], $input_name, $display_value, $is_default );
+
+			// Per-field help text. Hidden on the Default tab because Default
+			// is read-only and the override copy would be confusing there.
+			if ( ! $is_default && ! empty( $cfg['help'] ) ) {
+				echo '<p class="description" style="margin-top:6px;">' . esc_html( $cfg['help'] ) . '</p>';
+			}
+
 			if ( ! $is_default && '' !== $default_value ) {
-				echo '<p class="description"><em>' . esc_html__( 'Default:', 'kdna-regional-content' ) . '</em> ';
+				echo '<p class="description"><em>' . esc_html__( 'Currently shown by default:', 'kdna-regional-content' ) . '</em> ';
 				if ( 'media' === $cfg['type'] ) {
 					$thumb = wp_get_attachment_image_url( (int) $default_value, 'thumbnail' );
 					echo $thumb ? '<img src="' . esc_url( $thumb ) . '" style="max-height:48px;border:1px solid #ddd;" alt="" />' : esc_html( $default_value );
