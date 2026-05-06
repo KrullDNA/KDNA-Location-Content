@@ -222,6 +222,18 @@ final class KDNA_RC_Plugin {
 		// archive, search) automatically supports KDNA URL prefixes.
 		( new KDNA_RC_URL_Routing() )->init();
 
+		// Stage 15 Yoast / SEO integration. Each helper guards itself
+		// against Yoast being absent so registering unconditionally is
+		// safe; only the URL-routing-driven pieces (hreflang) emit on
+		// every install.
+		( new KDNA_RC_SEO_Meta_Box() )->init();
+		( new KDNA_RC_Yoast_Integration() )->init();
+		( new KDNA_RC_Yoast_MF_Variable_Resolver() )->init();
+		( new KDNA_RC_Hreflang() )->init();
+		( new KDNA_RC_Yoast_Sitemap_Integration() )->init();
+		( new KDNA_RC_Yoast_Schema_Integration() )->init();
+		( new KDNA_RC_SEO_Health_Check() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.

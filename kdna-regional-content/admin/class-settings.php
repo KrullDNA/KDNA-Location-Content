@@ -294,6 +294,24 @@ class KDNA_RC_Settings {
 			'kdna_rc_section_url_routing'
 		);
 
+		// Stage 15 SEO settings.
+		add_settings_field(
+			'hreflang_enabled',
+			__( 'Generate hreflang tags', 'kdna-regional-content' ),
+			array( $this, 'render_field_hreflang_enabled' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing',
+			array( 'label_for' => 'kdna_rc_hreflang_enabled' )
+		);
+
+		add_settings_field(
+			'sitemap_mode',
+			__( 'Sitemap integration mode', 'kdna-regional-content' ),
+			array( $this, 'render_field_sitemap_mode' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing'
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -463,6 +481,15 @@ class KDNA_RC_Settings {
 				}
 			}
 			$clean['url_routing_post_types'] = $valid;
+		}
+
+		// Stage 15 SEO settings.
+		if ( array_key_exists( 'hreflang_enabled_present', $input ) ) {
+			$clean['hreflang_enabled'] = ! empty( $input['hreflang_enabled'] );
+		}
+		if ( array_key_exists( 'sitemap_mode', $input ) ) {
+			$mode = sanitize_key( wp_unslash( $input['sitemap_mode'] ) );
+			$clean['sitemap_mode'] = in_array( $mode, array( 'extend', 'supplementary', 'disabled' ), true ) ? $mode : 'extend';
 		}
 
 		return $clean;
@@ -936,6 +963,54 @@ class KDNA_RC_Settings {
 	}
 
 	/**
+	 * Render the hreflang toggle (Stage 15).
+	 *
+	 * @return void
+	 */
+	public function render_field_hreflang_enabled() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! array_key_exists( 'hreflang_enabled', (array) $settings ) || ! empty( $settings['hreflang_enabled'] );
+
+		printf( '<input type="hidden" name="%1$s[hreflang_enabled_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_hreflang_enabled" name="%1$s[hreflang_enabled]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Emit <link rel="alternate" hreflang="..."> tags for every region / language URL variant on singular pages.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'On by default. Yoast Premium users with hreflang management enabled can leave this off; the plugin auto-detects Yoast Premium and skips its own output to avoid duplicate tags.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the sitemap-mode radio (Stage 15).
+	 *
+	 * @return void
+	 */
+	public function render_field_sitemap_mode() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['sitemap_mode'] ) ? (string) $settings['sitemap_mode'] : 'extend';
+
+		$choices = array(
+			'extend'        => __( 'Extend Yoast sitemap (recommended)', 'kdna-regional-content' ),
+			'supplementary' => __( 'Supplementary /kdna-rc-sitemap.xml', 'kdna-regional-content' ),
+			'disabled'      => __( 'Disabled', 'kdna-regional-content' ),
+		);
+
+		echo '<fieldset>';
+		foreach ( $choices as $value => $label ) {
+			printf(
+				'<label style="display:block; margin-bottom:4px;"><input type="radio" name="%1$s[sitemap_mode]" value="%2$s"%3$s /> %4$s</label>',
+				esc_attr( KDNA_RC_OPTION_SETTINGS ),
+				esc_attr( $value ),
+				checked( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+		echo '<p class="description">' . esc_html__( 'Extend mode injects xhtml:link siblings into Yoast\'s existing per-post-type sitemap. Supplementary mode adds a parallel /kdna-rc-sitemap.xml referenced from robots.txt and Yoast\'s sitemap index.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
 	 * Render the introductory copy for the auto-update schedule section.
 	 *
 	 * @return void
@@ -1039,6 +1114,7 @@ class KDNA_RC_Settings {
 					'auditScan'          => KDNA_RC_Field_Audit_Tool::AJAX_SCAN,
 					'auditBulkAdd'       => KDNA_RC_Field_Audit_Tool::AJAX_BULK_ADD,
 					'flushRules'         => KDNA_RC_URL_Routing::AJAX_FLUSH,
+					'seoHealthCheck'     => KDNA_RC_SEO_Health_Check::AJAX_ACTION,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(

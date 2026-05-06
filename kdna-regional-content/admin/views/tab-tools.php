@@ -194,6 +194,20 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'SEO Health Check', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php echo esc_html__( 'Scan the site for common SEO misconfigurations: Yoast detection, regions and languages set, hreflang enabled, sitemap mode, eligible post types, rewrite-rule freshness.', 'kdna-regional-content' ); ?>
+	</p>
+	<p class="kdna-rc-actions">
+		<button type="button" class="button" id="kdna-rc-seo-health-check">
+			<?php echo esc_html__( 'Run SEO health check', 'kdna-regional-content' ); ?>
+		</button>
+		<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+	</p>
+	<div class="kdna-rc-seo-health-result" aria-live="polite"></div>
+
+	<hr />
+
 	<h2><?php echo esc_html__( 'URL Routing', 'kdna-regional-content' ); ?></h2>
 	<?php
 	$kdna_rc_url_routing = new KDNA_RC_URL_Routing();

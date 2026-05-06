@@ -1041,7 +1041,72 @@
 		bindAuditTool();
 		bindFlushRewriteRules();
 		bindUrlPreviewMetaBox();
+		bindSeoHealthCheck();
 	} );
+
+	// =====================================================================
+	// Tools tab : SEO health check
+	// =====================================================================
+
+	function bindSeoHealthCheck() {
+		var $button = $( '#kdna-rc-seo-health-check' );
+		if ( ! $button.length ) { return; }
+		var $spinner = $button.parent().find( '.kdna-rc-spinner' );
+		var $result  = $( '.kdna-rc-seo-health-result' );
+
+		function escapeHtml( str ) {
+			return String( str ).replace( /[&<>"']/g, function ( c ) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ c ];
+			} );
+		}
+
+		function levelBadge( level ) {
+			var cls = level === 'pass' ? 'is-ok' : ( level === 'fail' ? 'is-error' : 'is-warn' );
+			var lbl = level.charAt( 0 ).toUpperCase() + level.slice( 1 );
+			return '<span class="kdna-rc-health-badge ' + cls + '">' + lbl + '</span>';
+		}
+
+		$button.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>Running checks...</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.seoHealthCheck,
+					nonce: config.nonce
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( ( response && response.data && response.data.message ) || 'Health check failed.' ) + '</p>' );
+						return;
+					}
+					var findings = ( response.data && response.data.findings ) || [];
+					if ( findings.length === 0 ) {
+						$result.html( '<p>No findings.</p>' );
+						return;
+					}
+					var html = '<ul class="kdna-rc-health-list">';
+					findings.forEach( function ( f ) {
+						html += '<li>' + levelBadge( f.level ) + ' <strong>' + escapeHtml( f.title ) + '</strong>: ' + escapeHtml( f.message ) + '</li>';
+					} );
+					html += '</ul>';
+					$result.html( html );
+				} )
+				.fail( function () {
+					$result.html( '<p class="kdna-rc-msg-error">Network error.</p>' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
 
 	// =====================================================================
 	// Tools tab : Flush rewrite rules

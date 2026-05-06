@@ -302,6 +302,110 @@ This plugin uses **cookie-based** language switching with no per-language URLs. 
 
 This is documented as a locked decision in section 11 of `PROJECT-BRIEF.md`.
 
+## Multilingual SEO
+
+Stage 14 + Stage 15 turn each regional / language URL into a properly differentiated indexable page. There are five layers of behaviour:
+
+```
++-------------------------+
+| Visitor request         |
+| /au/fr/about-us/        |
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 14 URL Routing    |   Strips /au/fr/ from REQUEST_URI,
+|                         |   sets kdna_region + kdna_language
+|                         |   cookies, exposes query vars.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 15 Yoast filters  |   On wp_head: substitutes
+|                         |   _yoast_wpseo_*_au and *_fr
+|                         |   suffix-pattern overrides.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 15 hreflang       |   Emits <link rel="alternate"
+|                         |   hreflang="en-AU"...> for every
+|                         |   variant of the post.
++-----------+-------------+
+            |
+            v
++-------------------------+
+| Stage 5+ variant render |   Front-end JS reads cookies, swaps
+|                         |   variant content for the matched
+|                         |   region + language.
++-------------------------+
+```
+
+**Storage strategy.** SEO meta uses a **suffix pattern** — `_yoast_wpseo_title_au`, `_yoast_wpseo_metadesc_fr` — separate post meta rows per language / region. This is intentionally different from the Stage 12 Multilingual Field types (which serialise an array onto a single row). Yoast and most third-party SEO tools read meta as plain strings; serialised arrays would break their integrations entirely. Different storage patterns for different concerns: MF for editorial content, suffix pattern for SEO meta.
+
+**Hreflang conventions.** Tags emit `x-default` for the bare URL, `lang-REGION` (e.g. `en-AU`) for combined URLs, the language code alone for language-only URLs, and the region's mapped Default Language combined with the region for region-only URLs. Self-referencing tags are required and always present.
+
+**Sitemap behaviour.** Three modes (configurable on the General tab):
+- **Extend** (recommended): augment Yoast's existing per-post-type sitemap with `xhtml:link` siblings per `<url>` entry.
+- **Supplementary**: parallel sitemap at `/kdna-rc-sitemap.xml`, advertised in `robots.txt` and Yoast's sitemap index.
+- **Disabled**: no sitemap output from this plugin.
+
+## Yoast integration
+
+Targets **Yoast SEO 21.x**. Hooked filters:
+
+| Filter | Purpose |
+| --- | --- |
+| `wpseo_title` | SEO title override (`_yoast_wpseo_title_{slug}`). Language-first resolution. |
+| `wpseo_metadesc` | Meta description override. Language-first. |
+| `wpseo_focuskw` | Focus keyphrase override (used in Yoast's analysis only). |
+| `wpseo_opengraph_title` | OG title override. Language-first. |
+| `wpseo_opengraph_desc` | OG description override. Language-first. |
+| `wpseo_opengraph_image` | OG image (resolves attachment ID → URL). |
+| `wpseo_twitter_title` / `wpseo_twitter_description` / `wpseo_twitter_image` | Twitter card overrides. |
+| `wpseo_canonical` | Canonical URL per the General-tab strategy (bare or each-self-canonical). Per-post canonical override beats both strategies. |
+| `wpseo_replacements` | Custom variable resolver: unwraps Stage 12 Multilingual Field values (`%%cf_my_field%%`) so titles and descriptions render the visitor language tab. |
+| `wpseo_schema_organization` / `wpseo_schema_local_business` | LocalBusiness / Organization regional address + phone overrides. |
+| `wpseo_sitemap_url` | Per-`<url>` extension when sitemap mode is **Extend**. |
+| `wpseo_sitemap_index_links` | Adds `kdna-rc-sitemap.xml` to the sitemap index when mode is **Supplementary**. |
+
+**Resolution priority.** Visitor-facing fields (titles, descriptions, OG / Twitter copy) prefer the language slug over the region slug. Region-bound fields (LocalBusiness address, phone, regional canonical) prefer the region. Bare URL = no override applied, Yoast's defaults pass through unchanged.
+
+**Yoast Premium:** when `WPSEO_PREMIUM_FILE` is defined the plugin defers to Premium's hreflang feature and skips its own output to avoid duplicate tags.
+
+**Known limitations.**
+- Yoast occasionally renames schema-property filter names; the plugin targets the names current at the time of Stage 15 build. If the LocalBusiness override stops appearing on a Yoast major upgrade, check the `wpseo_schema_*` filter names.
+- Product schema overrides are deferred. Submit a feature request if you need per-region pricing / availability in JSON-LD.
+- Sitemap supplementary mode caps at 5000 posts per XML file. Larger sites should use Extend mode.
+
+## When to use this vs WPML
+
+This plugin's URL routing approach works for most sites that need:
+- Region-specific copy on shared posts (US prices, UK prices, AU prices on the same page).
+- Per-language overrides on titles, descriptions, OG tags, and selected content widgets.
+- Multilingual JetEngine custom fields rendered through standard Yoast filters.
+- Cookie + IP detection with optional URL prefix routing.
+
+**Use WPML or Polylang instead when you need:**
+- Separate WordPress posts per language (each translation is its own post in the database, with separate slugs, comments, and revision history).
+- Fully translated taxonomy terms (one term per language, not one term with translated labels).
+- Per-language admin interface for editors who only manage one language.
+- Translation-memory or external translation-service integration.
+- Per-language WooCommerce shop pages, product attributes, or order workflows.
+
+The two approaches are not mutually exclusive — KDNA Regional Content can be installed alongside WPML for sites that want WPML's per-language posts AND KDNA's regional URL routing.
+
+## SEO checklist
+
+After deploying a region / language configuration, work through the post-launch checklist:
+
+1. **Submit each regional sitemap to Google Search Console.** When in **Extend** mode, the regional URLs appear inside Yoast's existing sitemap; when in **Supplementary** mode, submit `https://example.com/kdna-rc-sitemap.xml` separately.
+2. **Configure Geographic Targeting per region in Search Console.** Add one Search Console property per regional subdirectory (e.g. `https://example.com/au/`) and set the country target on each. This is Google's preferred signal for region-specific ranking.
+3. **Validate hreflang in Search Console's International Targeting report.** Watch for missing return tags and unsupported language codes.
+4. **Test rich results for schema.** Run the LocalBusiness page through `https://search.google.com/test/rich-results` and confirm the regional address surfaces correctly when the URL prefix is in place.
+5. **Verify canonical strategy.** View source on `/au/about-us/` and `/about-us/` in turn; the canonical tag should match the strategy you picked (bare-canonical means both URLs point at the bare URL).
+6. **Run the SEO health check** on the Tools tab whenever regions / languages / Yoast settings change.
+
 ## Build status
 
 See `../PROJECT-BRIEF.md` for the full build status table and stage descriptions.
