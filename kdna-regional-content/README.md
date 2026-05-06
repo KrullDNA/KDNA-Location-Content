@@ -212,6 +212,96 @@ Flags are rendered via the [flag-icons](https://github.com/lipis/flag-icons) lib
 
 The square `.fis` variant requires the 1×1 SVG set, which is intentionally not bundled to keep the package small. Use the default rectangular `.fi` class.
 
+## Working with JetEngine multilingual fields
+
+KDNA Multilingual fields (Stage 12) store every language's value on a single post meta row as a serialised PHP array:
+
+```php
+array(
+    'default' => 'Source value',
+    'fr'      => 'Valeur en français',
+    'de'      => 'Wert auf Deutsch',
+);
+```
+
+Standard `meta_query` clauses cannot match values **inside** that serialised array. Stage 13 adds adapters that intercept query construction at four layers and rewrite multilingual clauses transparently:
+
+- **JetSmartFilters** — every `meta_query` in the final query args is rewritten via `KDNA_RC_Multilingual_Query_Helper::rewrite_meta_query()`. Filter-widget option labels (checkbox / radio lists) are translated to the visitor's language at render time.
+- **JetSearch** — the search payload is extended with an extra OR group of multilingual clauses so the search term matches inside the visitor's resolved language tab. The General-tab toggle **Search across all language variants** widens this to every language at the cost of a slightly larger query.
+- **JetEngine Query Builder** — the same rewrite is applied to `jet-engine/query-builder/types/posts/get-items-args` and the listing-grid query args.
+- **REST API** — `rest_prepare_{cpt}` filters replace the serialised array in the response with the value resolved against the request's `Accept-Language` header (or `?lang=` query param). For Image fields the response carries `{ id, url }` instead of a bare attachment ID. Append `?multilingual=raw` to any REST URL to bypass the resolver.
+
+**The visitor's language is auto-detected from the `kdna_language` cookie**, so logged-out visitors using JetSearch or browsing a JetEngine listing automatically get language-correct results without any extra wiring.
+
+## Developer guide
+
+The plugin exposes a small public API class for downstream code that needs to opt in to multilingual query rewriting from custom widgets, REST endpoints, or shortcodes.
+
+### `KDNA_RC::translate_query_args( $args, $language = null )`
+
+Walks the `meta_query` (if present) and rewrites every clause whose `key` is a registered KDNA Multilingual field. Non-multilingual clauses pass through untouched.
+
+```php
+$args = KDNA_RC::translate_query_args( array(
+    'post_type'  => 'product',
+    'meta_query' => array(
+        array(
+            'key'   => 'product_category',   // a Stage 12 Multilingual Text field
+            'value' => 'Coffee Maker',
+        ),
+    ),
+) );
+
+$query = new WP_Query( $args );
+```
+
+When `$language` is omitted the helper resolves the visitor's language from the `kdna_language` cookie (or the configured Default Language if no cookie is set).
+
+### `KDNA_RC::resolve_field( $post_id, $meta_key, $language = null )`
+
+Returns the per-language value for a single post + multilingual field, with default-tab fallback when the language tab is empty.
+
+```php
+$summary = KDNA_RC::resolve_field( $post_id, 'product_summary' );
+echo wp_kses_post( $summary );
+```
+
+### `KDNA_RC::is_multilingual_field( $field_name, $cpt = null )`
+
+Returns true when the supplied meta key is registered as a KDNA Multilingual field. Optionally narrows to a single CPT so callers can disambiguate when the same key exists on more than one type.
+
+### Internal helper
+
+`KDNA_RC_Multilingual_Query_Helper` is the engine the public class delegates to. Use it directly when you need to build a single multilingual clause without going through `translate_query_args()`:
+
+```php
+$clause = KDNA_RC_Multilingual_Query_Helper::build_multilingual_meta_clause(
+    'product_category',
+    'Coffee Maker',
+    '=',
+    'fr'
+);
+```
+
+The clause is a standard `meta_query` array shape, ready to drop into any `WP_Query` args.
+
+## Limitations
+
+- **LIKE comparisons against very long Multilingual WYSIWYG bodies are slow** because MySQL still has to scan every `meta_value` row. If you need to filter or search by a translatable field, prefer short Multilingual Text fields (titles, categories, tags) over WYSIWYG bodies. The plugin emits a console warning when a single page packs more than 50 KB of multilingual variant data.
+- **Filter UI option lists** sourced by some JetSmartFilters versions extract labels directly from the raw stored meta. The plugin translates those labels best-effort, but very old JetSmartFilters builds may not pass enough context for the translation step to identify the source meta key. If a label still shows as a serialised string after enabling Stage 13, upgrade JetSmartFilters or rebuild the filter using the JetEngine custom-content provider.
+- **REST API resolution** kicks in only when the consumer sends an `Accept-Language` header that matches a configured language slug, sends `?lang=`, or relies on the configured Default Language fallback. Anonymous consumers without any of those signals receive the configured default tab content.
+- **Audit tool** scans the most recent 500 posts per CPT to keep the page responsive on large sites. Sites with more than that should run the audit per-CPT.
+
+## SEO note
+
+This plugin uses **cookie-based** language switching with no per-language URLs. That means:
+
+- **Search engines see the configured Default Language only.** Googlebot and Bing crawl without a `kdna_language` cookie, so they always receive the default-tab content. Non-default-language content is **not indexed**.
+- **No `hreflang` annotations are emitted** by this plugin because there are no per-language URLs to point at.
+- **For multilingual SEO** (per-language URLs, `hreflang` markers, separate sitemaps), use **WPML** or **Polylang** alongside this plugin. They handle URL routing and SEO; the multilingual field types here can still feed translatable content in either of those frameworks if you wire them up.
+
+This is documented as a locked decision in section 11 of `PROJECT-BRIEF.md`.
+
 ## Build status
 
 See `../PROJECT-BRIEF.md` for the full build status table and stage descriptions.

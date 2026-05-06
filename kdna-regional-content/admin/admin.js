@@ -1038,7 +1038,162 @@
 		bindLanguagesTab();
 		bindTestLanguageDetection();
 		bindMigrationTool();
+		bindAuditTool();
 	} );
+
+	// =====================================================================
+	// Tools tab : Field Translation Audit
+	// =====================================================================
+
+	function bindAuditTool() {
+		var $cpt    = $( '#kdna-rc-audit-cpt' );
+		var $run    = $( '#kdna-rc-audit-run' );
+		var $result = $( '.kdna-rc-audit-result' );
+		if ( ! $run.length ) { return; }
+		var $spinner = $run.parent().find( '.kdna-rc-spinner' );
+
+		function escapeHtml( str ) {
+			return String( str ).replace( /[&<>"']/g, function ( c ) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ c ];
+			} );
+		}
+
+		// Render the results table.
+		function renderTable( payload ) {
+			var fields = payload.fields || {};
+			var rows   = payload.rows || [];
+			var langs  = payload.lang_map || {};
+
+			var fieldKeys = Object.keys( fields );
+			if ( fieldKeys.length === 0 ) {
+				$result.html( '<p><em>' + escapeHtml( 'No multilingual fields found on the selected post type.' ) + '</em></p>' );
+				return;
+			}
+
+			// Per-field summary at the top: completeness percentage per language.
+			var langKeys = Object.keys( langs );
+			var summary  = '<h3>Completeness</h3><table class="widefat striped" style="max-width:760px;"><thead><tr><th>Field</th><th>Default</th>';
+			langKeys.forEach( function ( s ) {
+				summary += '<th>' + escapeHtml( langs[ s ].name ) + '</th>';
+			} );
+			summary += '</tr></thead><tbody>';
+
+			fieldKeys.forEach( function ( field ) {
+				var counts = { default: 0 };
+				langKeys.forEach( function ( s ) { counts[ s ] = 0; } );
+				rows.forEach( function ( row ) {
+					var entry = ( row.fields && row.fields[ field ] ) || {};
+					if ( entry.default ) { counts.default++; }
+					langKeys.forEach( function ( s ) { if ( entry[ s ] ) { counts[ s ]++; } } );
+				} );
+				var total = rows.length || 1;
+				summary += '<tr><th>' + escapeHtml( fields[ field ] ) + '<br><code>' + escapeHtml( field ) + '</code></th>';
+				summary += '<td>' + counts.default + '/' + rows.length + ' (' + Math.round( ( counts.default / total ) * 100 ) + '%)</td>';
+				langKeys.forEach( function ( s ) {
+					var pct = Math.round( ( counts[ s ] / total ) * 100 );
+					summary += '<td>' + counts[ s ] + '/' + rows.length + ' (' + pct + '%) ';
+					if ( counts[ s ] < rows.length ) {
+						summary += ' <button type="button" class="button-link kdna-rc-audit-bulk" data-field="' + escapeHtml( field ) + '" data-lang="' + escapeHtml( s ) + '">Add empty slots</button>';
+					}
+					summary += '</td>';
+				} );
+				summary += '</tr>';
+			} );
+			summary += '</tbody></table>';
+
+			// Per-post table.
+			var detail = '<h3>Per-post completeness</h3><table class="widefat striped" style="margin-top:1em;"><thead><tr><th>Post</th>';
+			fieldKeys.forEach( function ( field ) {
+				detail += '<th colspan="' + ( langKeys.length + 1 ) + '">' + escapeHtml( fields[ field ] ) + '</th>';
+			} );
+			detail += '</tr><tr><th></th>';
+			fieldKeys.forEach( function () {
+				detail += '<th>Default</th>';
+				langKeys.forEach( function ( s ) {
+					detail += '<th>' + escapeHtml( langs[ s ].flag || s ) + '</th>';
+				} );
+			} );
+			detail += '</tr></thead><tbody>';
+
+			rows.forEach( function ( row ) {
+				detail += '<tr><td><a href="' + escapeHtml( row.edit_link ) + '" target="_blank">' + escapeHtml( row.title || '#' + row.id ) + '</a></td>';
+				fieldKeys.forEach( function ( field ) {
+					var entry = ( row.fields && row.fields[ field ] ) || {};
+					var dotDefault = entry.default ? '●' : '○';
+					detail += '<td title="default">' + dotDefault + '</td>';
+					langKeys.forEach( function ( s ) {
+						var dot = entry[ s ] ? '●' : '○';
+						var link = entry[ s ]
+							? dot
+							: '<a href="' + escapeHtml( row.edit_link ) + '#kdna-rc-mlf-' + escapeHtml( field ) + '-' + escapeHtml( s ) + '" target="_blank" title="Translate ' + escapeHtml( s ) + '">' + dot + '</a>';
+						detail += '<td>' + link + '</td>';
+					} );
+				} );
+				detail += '</tr>';
+			} );
+			detail += '</tbody></table>';
+
+			$result.html( summary + detail );
+		}
+
+		$run.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$run.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$result.html( '<p><em>Scanning...</em></p>' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.auditScan,
+					nonce: config.nonce,
+					cpt: $cpt.val()
+				}
+			} )
+				.done( function ( response ) {
+					if ( ! response || ! response.success ) {
+						$result.html( '<p class="kdna-rc-msg-error">' + escapeHtml( ( response && response.data && response.data.message ) || 'Audit failed.' ) + '</p>' );
+						return;
+					}
+					renderTable( response.data || {} );
+				} )
+				.always( function () {
+					$run.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+
+		// Bulk-add empty language slots for one field/language.
+		$result.on( 'click', '.kdna-rc-audit-bulk', function ( ev ) {
+			ev.preventDefault();
+			var $btn = $( this );
+			var field = $btn.attr( 'data-field' );
+			var lang  = $btn.attr( 'data-lang' );
+			if ( ! window.confirm( 'Seed an empty "' + lang + '" slot on every post missing it? This will mark them on edit screens.' ) ) { return; } // eslint-disable-line no-alert
+			$btn.prop( 'disabled', true );
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.auditBulkAdd,
+					nonce: config.nonce,
+					field: field,
+					language: lang,
+					cpt: $cpt.val()
+				}
+			} ).done( function ( response ) {
+				if ( response && response.success ) {
+					$btn.replaceWith( '<em>' + ( response.data && response.data.message || 'Seeded.' ) + '</em>' );
+				} else {
+					$btn.prop( 'disabled', false );
+					window.alert( ( response && response.data && response.data.message ) || 'Bulk add failed.' ); // eslint-disable-line no-alert
+				}
+			} );
+		} );
+	}
 
 	// =====================================================================
 	// Tools tab : Migrate Field to Multilingual

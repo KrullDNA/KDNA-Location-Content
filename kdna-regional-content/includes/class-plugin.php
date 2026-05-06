@@ -207,6 +207,15 @@ final class KDNA_RC_Plugin {
 		( new KDNA_RC_Migration_Tool() )->init();
 		add_action( 'wp_ajax_kdna_rc_migration_fields', array( $this, 'ajax_migration_fields' ) );
 
+		// Stage 13 query / search / REST adapters and audit tool. Each
+		// guards itself when its target plugin is missing, so registering
+		// unconditionally is safe.
+		( new KDNA_RC_JetSmartFilters_Adapter() )->init();
+		( new KDNA_RC_JetSearch_Adapter() )->init();
+		( new KDNA_RC_JetEngine_Query_Adapter() )->init();
+		( new KDNA_RC_Rest_Api_Adapter() )->init();
+		( new KDNA_RC_Field_Audit_Tool() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.

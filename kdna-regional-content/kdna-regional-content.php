@@ -3,7 +3,7 @@
  * Plugin Name:       KDNA Regional Content
  * Plugin URI:        https://krulldna.com/
  * Description:       Serves region-specific content variants and visibility rules in Elementor based on visitor geolocation, with full-page cache compatibility.
- * Version:           0.1.2
+ * Version:           0.1.3
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Krull Design and Advertising (KDNA)
@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * to produce a "Constant already defined" warning.
  */
 if ( ! defined( 'KDNA_RC_VERSION' ) ) {
-	define( 'KDNA_RC_VERSION', '0.1.2' );
+	define( 'KDNA_RC_VERSION', '0.1.3' );
 }
 if ( ! defined( 'KDNA_RC_PLUGIN_FILE' ) ) {
 	define( 'KDNA_RC_PLUGIN_FILE', __FILE__ );
@@ -65,6 +65,10 @@ if ( ! defined( 'KDNA_RC_OPTION_SETTINGS' ) ) {
  * @param string $class_name Fully qualified class name being loaded.
  * @return void
  */
+// The bare-prefix public KDNA_RC API class does not match the autoloader's
+// KDNA_RC_ prefix rule, so include it explicitly.
+require_once KDNA_RC_PLUGIN_DIR . 'includes/class-kdna-rc.php';
+
 spl_autoload_register(
 	function ( $class_name ) {
 		// Only handle classes belonging to this plugin.

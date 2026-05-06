@@ -194,6 +194,27 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'Field Translation Audit', 'kdna-regional-content' ); ?></h2>
+	<p>
+		<?php echo esc_html__( 'Scan all KDNA Multilingual fields and report which posts have non-empty values in each language. Use the bulk action to seed empty language slots so editors can find them on the next post edit.', 'kdna-regional-content' ); ?>
+	</p>
+	<div class="kdna-rc-audit">
+		<p>
+			<label for="kdna-rc-audit-cpt"><?php echo esc_html__( 'Post Type', 'kdna-regional-content' ); ?></label>
+			<select id="kdna-rc-audit-cpt">
+				<option value="__all__"><?php echo esc_html__( 'All public post types', 'kdna-regional-content' ); ?></option>
+				<?php foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $cpt ) : ?>
+					<option value="<?php echo esc_attr( $cpt->name ); ?>"><?php echo esc_html( $cpt->labels->singular_name . ' (' . $cpt->name . ')' ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<button type="button" class="button" id="kdna-rc-audit-run"><?php echo esc_html__( 'Run Audit', 'kdna-regional-content' ); ?></button>
+			<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		</p>
+		<div class="kdna-rc-audit-result" aria-live="polite"></div>
+	</div>
+
+	<hr />
+
 	<h2><?php echo esc_html__( 'Migrate Field to Multilingual', 'kdna-regional-content' ); ?></h2>
 	<p>
 		<?php echo esc_html__( 'Convert an existing JetEngine Text, Textarea, or WYSIWYG field into its KDNA Multilingual equivalent. Existing values become the Default tab on every post; per-language tabs start empty.', 'kdna-regional-content' ); ?>

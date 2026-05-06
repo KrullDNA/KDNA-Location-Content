@@ -231,6 +231,25 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_default_language' )
 		);
 
+		// Stage 13 toggles: search cross-language and REST resolver.
+		add_settings_field(
+			'search_across_all_languages',
+			__( 'Search across all language variants', 'kdna-regional-content' ),
+			array( $this, 'render_field_search_across_all' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_languages_general',
+			array( 'label_for' => 'kdna_rc_search_across_all_languages' )
+		);
+
+		add_settings_field(
+			'rest_resolve_multilingual',
+			__( 'Resolve Multilingual fields in REST API by Accept-Language header', 'kdna-regional-content' ),
+			array( $this, 'render_field_rest_resolve_multilingual' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_languages_general',
+			array( 'label_for' => 'kdna_rc_rest_resolve_multilingual' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -368,6 +387,15 @@ class KDNA_RC_Settings {
 			if ( '' === $value || null !== $languages_handler->get( $value ) ) {
 				$clean['default_language'] = $value;
 			}
+		}
+
+		// Stage 13 toggles. Hidden presence flags so an unticked checkbox
+		// saves cleanly as false.
+		if ( array_key_exists( 'search_across_all_languages_present', $input ) ) {
+			$clean['search_across_all_languages'] = ! empty( $input['search_across_all_languages'] );
+		}
+		if ( array_key_exists( 'rest_resolve_multilingual_present', $input ) ) {
+			$clean['rest_resolve_multilingual'] = ! empty( $input['rest_resolve_multilingual'] );
 		}
 
 		return $clean;
@@ -694,6 +722,50 @@ class KDNA_RC_Settings {
 	}
 
 	/**
+	 * Render the Search across all language variants checkbox (Stage 13).
+	 *
+	 * @return void
+	 */
+	public function render_field_search_across_all() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['search_across_all_languages'] );
+
+		printf(
+			'<input type="hidden" name="%1$s[search_across_all_languages_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_search_across_all_languages" name="%1$s[search_across_all_languages]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Match search terms against every configured language, not only the visitor\'s current language.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Off by default. Useful for sites where users search in mixed languages, but increases query cost.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the REST API resolver checkbox (Stage 13).
+	 *
+	 * @return void
+	 */
+	public function render_field_rest_resolve_multilingual() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = array_key_exists( 'rest_resolve_multilingual', (array) $settings ) ? (bool) $settings['rest_resolve_multilingual'] : true;
+
+		printf(
+			'<input type="hidden" name="%1$s[rest_resolve_multilingual_present]" value="1" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS )
+		);
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_rest_resolve_multilingual" name="%1$s[rest_resolve_multilingual]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Replace serialised Multilingual values in REST responses with the language matching the request\'s Accept-Language header.', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'On by default. Append ?multilingual=raw to a REST URL to bypass the resolver and receive the raw serialised array instead.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
 	 * Render the introductory copy for the auto-update schedule section.
 	 *
 	 * @return void
@@ -794,6 +866,8 @@ class KDNA_RC_Settings {
 					'migrationFields'    => 'kdna_rc_migration_fields',
 					'migrationStart'     => KDNA_RC_Migration_Tool::AJAX_START,
 					'migrationBatch'     => KDNA_RC_Migration_Tool::AJAX_BATCH,
+					'auditScan'          => KDNA_RC_Field_Audit_Tool::AJAX_SCAN,
+					'auditBulkAdd'       => KDNA_RC_Field_Audit_Tool::AJAX_BULK_ADD,
 				),
 				'countries' => $country_payload,
 				'i18n'      => array(
