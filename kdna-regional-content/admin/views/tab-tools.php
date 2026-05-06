@@ -194,6 +194,33 @@ $metadata = $status['metadata'];
 
 	<hr />
 
+	<h2><?php echo esc_html__( 'URL Routing', 'kdna-regional-content' ); ?></h2>
+	<?php
+	$kdna_rc_url_routing = new KDNA_RC_URL_Routing();
+	$kdna_rc_variants_per_post = $kdna_rc_url_routing->estimate_variants_per_post();
+	?>
+	<p>
+		<?php
+		printf(
+			/* translators: %d: number of variants per post. */
+			esc_html__( 'With the current region and language configuration, each post can produce up to %d cache-able URL variants (bare + regional + language + combined). Cache plugins like WP Rocket cache each URL separately, so a site with thousands of posts may see significantly larger cache footprints than before.', 'kdna-regional-content' ),
+			(int) $kdna_rc_variants_per_post
+		);
+		?>
+	</p>
+	<p class="kdna-rc-actions">
+		<button type="button" class="button" id="kdna-rc-flush-rules">
+			<?php echo esc_html__( 'Flush rewrite rules', 'kdna-regional-content' ); ?>
+		</button>
+		<span class="spinner kdna-rc-spinner" aria-hidden="true"></span>
+		<span class="kdna-rc-flush-message" role="status" aria-live="polite"></span>
+	</p>
+	<p class="description">
+		<?php echo esc_html__( 'Use this button when regional URLs return 404 unexpectedly after a permalink change. Region / language CRUD operations flush automatically; this button is the manual escape hatch.', 'kdna-regional-content' ); ?>
+	</p>
+
+	<hr />
+
 	<h2><?php echo esc_html__( 'Field Translation Audit', 'kdna-regional-content' ); ?></h2>
 	<p>
 		<?php echo esc_html__( 'Scan all KDNA Multilingual fields and report which posts have non-empty values in each language. Use the bulk action to seed empty language slots so editors can find them on the next post edit.', 'kdna-regional-content' ); ?>

@@ -1039,7 +1039,102 @@
 		bindTestLanguageDetection();
 		bindMigrationTool();
 		bindAuditTool();
+		bindFlushRewriteRules();
+		bindUrlPreviewMetaBox();
 	} );
+
+	// =====================================================================
+	// Tools tab : Flush rewrite rules
+	// =====================================================================
+
+	function bindFlushRewriteRules() {
+		var $button = $( '#kdna-rc-flush-rules' );
+		if ( ! $button.length ) { return; }
+
+		var $actions = $button.parent();
+		var $spinner = $actions.find( '.kdna-rc-spinner' );
+		var $message = $actions.find( '.kdna-rc-flush-message' );
+
+		$button.on( 'click', function ( ev ) {
+			ev.preventDefault();
+			$button.prop( 'disabled', true );
+			$spinner.addClass( 'is-active' );
+			$message.removeClass( 'kdna-rc-msg-ok kdna-rc-msg-error' ).text( '' );
+
+			$.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: {
+					action: config.actions.flushRules,
+					nonce: config.nonce
+				}
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						$message.addClass( 'kdna-rc-msg-ok' ).text( ( response.data && response.data.message ) || 'Done.' );
+					} else {
+						$message.addClass( 'kdna-rc-msg-error' ).text( ( response && response.data && response.data.message ) || 'Flush failed.' );
+					}
+				} )
+				.fail( function () {
+					$message.addClass( 'kdna-rc-msg-error' ).text( 'Network error.' );
+				} )
+				.always( function () {
+					$button.prop( 'disabled', false );
+					$spinner.removeClass( 'is-active' );
+				} );
+		} );
+	}
+
+	// =====================================================================
+	// Post edit : URL preview meta box (copy + Test as visitor)
+	// =====================================================================
+
+	function bindUrlPreviewMetaBox() {
+		var box = document.getElementById( 'kdna_rc_url_preview' );
+		if ( ! box ) { return; }
+
+		// Copy buttons.
+		$( box ).on( 'click', '.kdna-rc-url-copy', function ( ev ) {
+			ev.preventDefault();
+			var url = $( this ).attr( 'data-url' ) || '';
+			if ( ! url ) { return; }
+			var $btn = $( this );
+			var prev = $btn.text();
+
+			function flash( ok ) {
+				$btn.text( ok ? 'Copied!' : 'Copy failed' );
+				setTimeout( function () { $btn.text( prev ); }, 1500 );
+			}
+
+			if ( navigator.clipboard && navigator.clipboard.writeText ) {
+				navigator.clipboard.writeText( url ).then( function () { flash( true ); }, function () { flash( false ); } );
+				return;
+			}
+
+			// Fallback: temporary textarea + execCommand.
+			var ta = document.createElement( 'textarea' );
+			ta.value = url;
+			document.body.appendChild( ta );
+			ta.select();
+			try {
+				flash( document.execCommand( 'copy' ) );
+			} catch ( err ) {
+				flash( false );
+			}
+			document.body.removeChild( ta );
+		} );
+
+		// Test as visitor : open the selected URL in a new tab.
+		$( box ).on( 'click', '.kdna-rc-test-as-visitor-go', function ( ev ) {
+			ev.preventDefault();
+			var url = $( box ).find( '.kdna-rc-test-as-visitor' ).val();
+			if ( url ) {
+				window.open( url, '_blank', 'noopener' );
+			}
+		} );
+	}
 
 	// =====================================================================
 	// Tools tab : Field Translation Audit

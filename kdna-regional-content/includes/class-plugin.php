@@ -216,6 +216,12 @@ final class KDNA_RC_Plugin {
 		( new KDNA_RC_Rest_Api_Adapter() )->init();
 		( new KDNA_RC_Field_Audit_Tool() )->init();
 
+		// Stage 14 per-region / per-language URL routing. Hooks
+		// do_parse_request before WordPress parses the URL so every
+		// permalink context (page, post, CPT, taxonomy, paginated
+		// archive, search) automatically supports KDNA URL prefixes.
+		( new KDNA_RC_URL_Routing() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.
