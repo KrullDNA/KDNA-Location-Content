@@ -47,15 +47,16 @@ class KDNA_RC_Yoast_Integration {
 			return;
 		}
 
-		// Visitor-facing fields: language wins, region falls back.
+		// Visitor-facing fields: language wins, region falls back. Twitter
+		// fields removed in v0.1.7 because every modern social platform
+		// (Twitter / X included) reads OG tags by default and the
+		// duplicate inputs added editor friction without SEO benefit.
 		$lang_first = array(
 			'wpseo_title'                 => '_yoast_wpseo_title',
 			'wpseo_metadesc'              => '_yoast_wpseo_metadesc',
 			'wpseo_focuskw'               => '_yoast_wpseo_focuskw',
 			'wpseo_opengraph_title'       => '_yoast_wpseo_opengraph-title',
 			'wpseo_opengraph_desc'        => '_yoast_wpseo_opengraph-description',
-			'wpseo_twitter_title'         => '_yoast_wpseo_twitter-title',
-			'wpseo_twitter_description'   => '_yoast_wpseo_twitter-description',
 		);
 		foreach ( $lang_first as $hook => $key ) {
 			add_filter(
@@ -69,7 +70,6 @@ class KDNA_RC_Yoast_Integration {
 
 		// Image fields: stored as attachment IDs, the filter expects URLs.
 		add_filter( 'wpseo_opengraph_image', array( $this, 'filter_opengraph_image' ), 100 );
-		add_filter( 'wpseo_twitter_image', array( $this, 'filter_twitter_image' ), 100 );
 
 		// Canonical: per the Stage 14 canonical_strategy setting.
 		add_filter( 'wpseo_canonical', array( $this, 'filter_canonical' ), 100 );
@@ -170,16 +170,6 @@ class KDNA_RC_Yoast_Integration {
 	 */
 	public function filter_opengraph_image( $default_url ) {
 		return $this->resolve_image( $default_url, '_yoast_wpseo_opengraph-image-id' );
-	}
-
-	/**
-	 * Twitter image: stored as attachment ID, returned as URL.
-	 *
-	 * @param string $default_url Yoast's default Twitter image URL.
-	 * @return string
-	 */
-	public function filter_twitter_image( $default_url ) {
-		return $this->resolve_image( $default_url, '_yoast_wpseo_twitter-image-id' );
 	}
 
 	/**
