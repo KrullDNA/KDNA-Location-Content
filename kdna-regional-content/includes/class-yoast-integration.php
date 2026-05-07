@@ -43,36 +43,17 @@ class KDNA_RC_Yoast_Integration {
 	 * @return void
 	 */
 	public function init() {
-		if ( ! defined( 'WPSEO_VERSION' ) ) {
-			return;
+		// As of v0.1.9 filter registration moved into the SEO adapter
+		// registry so the same UX works against every supported SEO
+		// plugin (Yoast, Rank Math, AIOSEO, SEOPress, The SEO Framework,
+		// Slim SEO, SmartCrawl, Squirrly). This class is kept as a thin
+		// shim because KDNA_RC_Yoast_Schema_Integration calls
+		// resolve_active_slug() on it; its filter registration is now
+		// the adapter's job.
+		$adapter = KDNA_RC_SEO_Adapter_Registry::active_adapter();
+		if ( null !== $adapter ) {
+			$adapter->init();
 		}
-
-		// Visitor-facing fields: language wins, region falls back. Twitter
-		// fields removed in v0.1.7 because every modern social platform
-		// (Twitter / X included) reads OG tags by default and the
-		// duplicate inputs added editor friction without SEO benefit.
-		$lang_first = array(
-			'wpseo_title'                 => '_yoast_wpseo_title',
-			'wpseo_metadesc'              => '_yoast_wpseo_metadesc',
-			'wpseo_focuskw'               => '_yoast_wpseo_focuskw',
-			'wpseo_opengraph_title'       => '_yoast_wpseo_opengraph-title',
-			'wpseo_opengraph_desc'        => '_yoast_wpseo_opengraph-description',
-		);
-		foreach ( $lang_first as $hook => $key ) {
-			add_filter(
-				$hook,
-				function ( $value ) use ( $key ) {
-					return $this->resolve_string( $value, $key, 'language_first' );
-				},
-				100
-			);
-		}
-
-		// Image fields: stored as attachment IDs, the filter expects URLs.
-		add_filter( 'wpseo_opengraph_image', array( $this, 'filter_opengraph_image' ), 100 );
-
-		// Canonical: per the Stage 14 canonical_strategy setting.
-		add_filter( 'wpseo_canonical', array( $this, 'filter_canonical' ), 100 );
 	}
 
 	/**

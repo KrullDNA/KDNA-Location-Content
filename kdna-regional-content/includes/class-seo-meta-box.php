@@ -55,53 +55,84 @@ class KDNA_RC_SEO_Meta_Box {
 	 * @return array<string,array{label:string,type:string}>
 	 */
 	public static function fields() {
-		return array(
-			'_yoast_wpseo_title' => array(
+		$adapter = KDNA_RC_SEO_Adapter_Registry::active_adapter();
+		if ( null === $adapter ) {
+			return array();
+		}
+		$keys     = $adapter->meta_keys();
+		$is_yoast = 'yoast' === $adapter->slug();
+		// OG image storage: 'id' (Yoast / Rank Math / TSF / Slim SEO /
+		// SmartCrawl) or 'url' (AIOSEO / SEOPress / Squirrly).
+		$og_image_type = 'id' === $adapter->og_image_storage() ? 'media' : 'url';
+
+		$plugin_label = $adapter->label();
+
+		$concepts = array(
+			'title' => array(
 				'label' => __( 'SEO Title', 'kdna-regional-content' ),
 				'type'  => 'text',
-				'help'  => __( 'Optional override. Leave blank to keep Yoast\'s SEO title for this region or language.', 'kdna-regional-content' ),
+				/* translators: %s: SEO plugin name. */
+				'help'  => sprintf( __( 'Optional override. Leave blank to keep %s\'s SEO title for this region or language.', 'kdna-regional-content' ), $plugin_label ),
 			),
-			'_yoast_wpseo_metadesc' => array(
+			'description' => array(
 				'label' => __( 'Meta Description', 'kdna-regional-content' ),
 				'type'  => 'textarea',
-				'help'  => __( 'Optional override. Leave blank to keep Yoast\'s meta description.', 'kdna-regional-content' ),
+				'help'  => sprintf( __( 'Optional override. Leave blank to keep %s\'s meta description.', 'kdna-regional-content' ), $plugin_label ),
 			),
-			'_yoast_wpseo_focuskw' => array(
+			'focus' => array(
 				'label' => __( 'Focus Keyphrase', 'kdna-regional-content' ),
 				'type'  => 'text',
-				'help'  => __( 'Optional override. Used by Yoast\'s readability analysis only. Leave blank in most cases.', 'kdna-regional-content' ),
+				'help'  => __( 'Optional override. Used by the SEO plugin\'s readability analysis only. Leave blank in most cases.', 'kdna-regional-content' ),
 			),
-			'_yoast_wpseo_canonical' => array(
+			'canonical' => array(
 				'label' => __( 'Canonical URL', 'kdna-regional-content' ),
 				'type'  => 'url',
 				'help'  => __( 'Leave blank. The canonical URL is generated automatically from the Canonical Strategy setting in Regional Content > General. Only fill this in for the rare case where one region needs to canonicalise to a completely different URL.', 'kdna-regional-content' ),
 			),
-			'_yoast_wpseo_opengraph-title' => array(
+			'og_title' => array(
 				'label' => __( 'OG Title', 'kdna-regional-content' ),
 				'type'  => 'text',
 				'help'  => __( 'Optional override for social share previews (Facebook, LinkedIn, WhatsApp, Slack, X, etc.). Leave blank to fall back to the SEO Title above, then the post title.', 'kdna-regional-content' ),
 			),
-			'_yoast_wpseo_opengraph-description' => array(
+			'og_description' => array(
 				'label' => __( 'OG Description', 'kdna-regional-content' ),
 				'type'  => 'textarea',
 				'help'  => __( 'Optional override for social share previews. Leave blank to fall back to the Meta Description above, then the post excerpt.', 'kdna-regional-content' ),
 			),
-			'_yoast_wpseo_opengraph-image-id' => array(
+			'og_image' => array(
 				'label' => __( 'OG Image', 'kdna-regional-content' ),
-				'type'  => 'media',
+				'type'  => $og_image_type,
 				'help'  => __( 'Optional override for the image shown in social share previews. Leave blank to fall back to the post\'s Featured Image.', 'kdna-regional-content' ),
 			),
-			'_yoast_wpseo_localbusiness_address' => array(
-				'label' => __( 'Local Business Address', 'kdna-regional-content' ),
-				'type'  => 'textarea',
-				'help'  => __( 'Per-region override for the LocalBusiness schema address. Leave blank to use the site-wide address from Yoast > Settings > Schema.', 'kdna-regional-content' ),
-			),
-			'_yoast_wpseo_localbusiness_phone' => array(
-				'label' => __( 'Local Business Phone', 'kdna-regional-content' ),
-				'type'  => 'text',
-				'help'  => __( 'Per-region override for the LocalBusiness schema phone number. Leave blank to use the site-wide value.', 'kdna-regional-content' ),
-			),
 		);
+
+		// LocalBusiness fields are Yoast-only because schema overrides
+		// (Stage 15 Part F) are wired against Yoast's schema filters.
+		if ( $is_yoast ) {
+			$concepts['localbusiness_address'] = array(
+				'label'    => __( 'Local Business Address', 'kdna-regional-content' ),
+				'type'     => 'textarea',
+				'help'     => __( 'Per-region override for the LocalBusiness schema address. Leave blank to use the site-wide address from Yoast > Settings > Schema.', 'kdna-regional-content' ),
+				'meta_key' => '_yoast_wpseo_localbusiness_address',
+			);
+			$concepts['localbusiness_phone'] = array(
+				'label'    => __( 'Local Business Phone', 'kdna-regional-content' ),
+				'type'     => 'text',
+				'help'     => __( 'Per-region override for the LocalBusiness schema phone number. Leave blank to use the site-wide value.', 'kdna-regional-content' ),
+				'meta_key' => '_yoast_wpseo_localbusiness_phone',
+			);
+		}
+
+		// Re-key by the adapter's meta key so the rest of the meta box
+		// (render, save, read_override) keeps using meta keys directly.
+		$out = array();
+		foreach ( $concepts as $concept => $cfg ) {
+			$meta_key = isset( $cfg['meta_key'] ) ? $cfg['meta_key'] : ( isset( $keys[ $concept ] ) ? $keys[ $concept ] : '' );
+			if ( '' === $meta_key ) { continue; }
+			unset( $cfg['meta_key'] );
+			$out[ $meta_key ] = $cfg;
+		}
+		return $out;
 	}
 
 	/**
@@ -113,7 +144,9 @@ class KDNA_RC_SEO_Meta_Box {
 		if ( ! is_admin() ) {
 			return;
 		}
-		if ( ! defined( 'WPSEO_VERSION' ) ) {
+		// Detect any of the supported SEO plugins, not Yoast specifically.
+		// The meta box no-ops only when no adapter matches.
+		if ( ! KDNA_RC_SEO_Adapter_Registry::any_active() ) {
 			return;
 		}
 		add_action( 'add_meta_boxes', array( $this, 'register_meta_box' ) );

@@ -81,10 +81,26 @@ class KDNA_RC_SEO_Health_Check {
 	 * @return array
 	 */
 	private function check_yoast_active() {
-		if ( defined( 'WPSEO_VERSION' ) ) {
-			return $this->finding( 'pass', __( 'Yoast SEO active', 'kdna-regional-content' ), sprintf( __( 'Yoast %s detected.', 'kdna-regional-content' ), WPSEO_VERSION ) );
+		// Renamed semantically from "Yoast active" to "any supported SEO
+		// plugin active" once multi-adapter support landed. Method name
+		// kept for the existing call list in ajax_run().
+		$adapter = KDNA_RC_SEO_Adapter_Registry::active_adapter();
+		if ( null !== $adapter ) {
+			return $this->finding(
+				'pass',
+				__( 'SEO plugin detected', 'kdna-regional-content' ),
+				sprintf(
+					/* translators: %s: SEO plugin label, e.g. Yoast SEO. */
+					__( 'Active SEO adapter: %s. Title, description, canonical, and Open Graph overrides will route through this plugin\'s filter chain.', 'kdna-regional-content' ),
+					$adapter->label()
+				)
+			);
 		}
-		return $this->finding( 'fail', __( 'Yoast SEO not detected', 'kdna-regional-content' ), __( 'Install and activate Yoast SEO. The plugin\'s regional / language SEO meta box, canonical strategy, and Yoast filter integration depend on Yoast being present.', 'kdna-regional-content' ) );
+		return $this->finding(
+			'fail',
+			__( 'No supported SEO plugin detected', 'kdna-regional-content' ),
+			__( 'Install and activate one of: Yoast SEO, Rank Math, All in One SEO, SEOPress, The SEO Framework, Slim SEO, SmartCrawl, or Squirrly. The plugin\'s regional / language SEO meta box and canonical strategy require an SEO plugin to hook into.', 'kdna-regional-content' )
+		);
 	}
 
 	/**
