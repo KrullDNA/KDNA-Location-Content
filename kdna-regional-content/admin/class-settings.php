@@ -329,6 +329,15 @@ class KDNA_RC_Settings {
 			'kdna_rc_section_url_routing'
 		);
 
+		add_settings_field(
+			'google_analytics_integration',
+			__( 'Google Analytics integration', 'kdna-regional-content' ),
+			array( $this, 'render_field_google_analytics_integration' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_url_routing',
+			array( 'label_for' => 'kdna_rc_google_analytics_integration' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -507,6 +516,10 @@ class KDNA_RC_Settings {
 		if ( array_key_exists( 'sitemap_mode', $input ) ) {
 			$mode = sanitize_key( wp_unslash( $input['sitemap_mode'] ) );
 			$clean['sitemap_mode'] = in_array( $mode, array( 'extend', 'supplementary', 'disabled' ), true ) ? $mode : 'extend';
+		}
+
+		if ( array_key_exists( 'google_analytics_integration_present', $input ) ) {
+			$clean['google_analytics_integration'] = ! empty( $input['google_analytics_integration'] );
 		}
 
 		return $clean;
@@ -1025,6 +1038,36 @@ class KDNA_RC_Settings {
 		}
 		echo '</fieldset>';
 		echo '<p class="description">' . esc_html__( 'Extend mode injects xhtml:link siblings into Yoast\'s existing per-post-type sitemap. Supplementary mode adds a parallel /kdna-rc-sitemap.xml referenced from robots.txt and Yoast\'s sitemap index.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the Google Analytics integration toggle (v0.2.0).
+	 *
+	 * @return void
+	 */
+	public function render_field_google_analytics_integration() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['google_analytics_integration'] );
+
+		printf( '<input type="hidden" name="%1$s[google_analytics_integration_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_google_analytics_integration" name="%1$s[google_analytics_integration]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Push the visitor\'s resolved region and language into Google Analytics 4 as user properties and a kdna_resolution custom event.', 'kdna-regional-content' )
+		);
+		echo '<div class="description" style="margin-top:8px;">';
+		echo '<p style="margin:0 0 6px;"><strong>' . esc_html__( 'Setup steps:', 'kdna-regional-content' ) . '</strong></p>';
+		echo '<ol style="margin:0 0 6px 18px;">';
+		echo '<li>' . esc_html__( 'Install Google Analytics 4 on the site (Site Kit, MonsterInsights, Google Tag Manager, or raw gtag.js — anything that defines window.gtag).', 'kdna-regional-content' ) . '</li>';
+		echo '<li>' . wp_kses(
+			__( 'In GA4 <em>Admin &rarr; Custom Definitions &rarr; Create custom dimension</em>, create two event-scoped dimensions named <code>kdna_region</code> and <code>kdna_language</code>.', 'kdna-regional-content' ),
+			array( 'em' => array(), 'code' => array() )
+		) . '</li>';
+		echo '<li>' . esc_html__( 'Wait 24 hours for GA4 to start populating data. Then break any report down by kdna_region or kdna_language.', 'kdna-regional-content' ) . '</li>';
+		echo '</ol>';
+		echo '<p style="margin:0;"><em>' . esc_html__( 'Safe to leave on even if GA is not yet installed: the snippet is a no-op until window.gtag exists.', 'kdna-regional-content' ) . '</em></p>';
+		echo '</div>';
 	}
 
 	/**
