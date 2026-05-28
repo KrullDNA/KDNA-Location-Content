@@ -338,6 +338,52 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_google_analytics_integration' )
 		);
 
+		// Region-switch banner. Lives in its own section so the toggle and
+		// its three text-overrides (message template + Yes / No labels)
+		// read as a single feature rather than four unrelated fields.
+		add_settings_section(
+			'kdna_rc_section_region_banner',
+			__( 'Region-switch Banner', 'kdna-regional-content' ),
+			array( $this, 'render_section_region_banner' ),
+			self::PAGE_SLUG . '-general'
+		);
+
+		add_settings_field(
+			'region_banner_enabled',
+			__( 'Show region-switch banner', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_enabled' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_enabled' )
+		);
+
+		add_settings_field(
+			'region_banner_message',
+			__( 'Banner message', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_message' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_message' )
+		);
+
+		add_settings_field(
+			'region_banner_yes',
+			__( 'Yes button label', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_yes' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_yes' )
+		);
+
+		add_settings_field(
+			'region_banner_no',
+			__( 'No button label', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_no' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_no' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -520,6 +566,22 @@ class KDNA_RC_Settings {
 
 		if ( array_key_exists( 'google_analytics_integration_present', $input ) ) {
 			$clean['google_analytics_integration'] = ! empty( $input['google_analytics_integration'] );
+		}
+
+		// Region-switch banner toggle + text overrides. The labels are
+		// sanitize_text_field — single-line, no HTML — because they are
+		// rendered into a button/anchor with textContent in JS.
+		if ( array_key_exists( 'region_banner_enabled_present', $input ) ) {
+			$clean['region_banner_enabled'] = ! empty( $input['region_banner_enabled'] );
+		}
+		if ( array_key_exists( 'region_banner_message', $input ) ) {
+			$clean['region_banner_message'] = sanitize_text_field( wp_unslash( $input['region_banner_message'] ) );
+		}
+		if ( array_key_exists( 'region_banner_yes', $input ) ) {
+			$clean['region_banner_yes'] = sanitize_text_field( wp_unslash( $input['region_banner_yes'] ) );
+		}
+		if ( array_key_exists( 'region_banner_no', $input ) ) {
+			$clean['region_banner_no'] = sanitize_text_field( wp_unslash( $input['region_banner_no'] ) );
 		}
 
 		return $clean;
@@ -1068,6 +1130,92 @@ class KDNA_RC_Settings {
 		echo '</ol>';
 		echo '<p style="margin:0;"><em>' . esc_html__( 'Safe to leave on even if GA is not yet installed: the snippet is a no-op until window.gtag exists.', 'kdna-regional-content' ) . '</em></p>';
 		echo '</div>';
+	}
+
+	/**
+	 * Render the intro copy for the region-switch banner section.
+	 *
+	 * @return void
+	 */
+	public function render_section_region_banner() {
+		echo '<p>' . esc_html__( 'Show a small, dismissible prompt at the top of the page when the visitor\'s IP-detected region differs from the URL they landed on. Visitors choose whether to switch; nothing redirects automatically (auto-redirects break shared links and confuse search engines).', 'kdna-regional-content' ) . '</p>';
+		echo '<p>' . esc_html__( 'Shown at most once per visitor; the dismiss cookie matches the Cookie Lifetime setting above.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	/**
+	 * Render the region-switch banner enable toggle.
+	 *
+	 * @return void
+	 */
+	public function render_field_region_banner_enabled() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = ! empty( $settings['region_banner_enabled'] );
+
+		printf( '<input type="hidden" name="%1$s[region_banner_enabled_present]" value="1" />', esc_attr( KDNA_RC_OPTION_SETTINGS ) );
+		printf(
+			'<label><input type="checkbox" id="kdna_rc_region_banner_enabled" name="%1$s[region_banner_enabled]" value="1"%2$s /> %3$s</label>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			checked( $current, true, false ),
+			esc_html__( 'Show the banner when the detected region differs from the URL the visitor is on.', 'kdna-regional-content' )
+		);
+	}
+
+	/**
+	 * Render the region-switch banner message-template field.
+	 *
+	 * @return void
+	 */
+	public function render_field_region_banner_message() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_message'] ) ? (string) $settings['region_banner_message'] : '';
+
+		printf(
+			'<textarea id="kdna_rc_region_banner_message" name="%1$s[region_banner_message]" rows="2" class="large-text" placeholder="%2$s">%3$s</textarea>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( KDNA_RC_Region_Banner::DEFAULT_MESSAGE ),
+			esc_textarea( $current )
+		);
+		echo '<p class="description">' . wp_kses(
+			__( 'Use the <code>{region}</code> macro anywhere in the message; it is replaced with the detected region\'s display name (for example <em>New Zealand</em>) at view time. Leave blank to use the default.', 'kdna-regional-content' ),
+			array(
+				'code' => array(),
+				'em'   => array(),
+			)
+		) . '</p>';
+	}
+
+	/**
+	 * Render the region-switch banner Yes-button label field.
+	 *
+	 * @return void
+	 */
+	public function render_field_region_banner_yes() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_yes'] ) ? (string) $settings['region_banner_yes'] : '';
+
+		printf(
+			'<input type="text" id="kdna_rc_region_banner_yes" name="%1$s[region_banner_yes]" value="%2$s" class="regular-text" placeholder="%3$s" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $current ),
+			esc_attr__( 'Yes, switch', 'kdna-regional-content' )
+		);
+	}
+
+	/**
+	 * Render the region-switch banner No-button label field.
+	 *
+	 * @return void
+	 */
+	public function render_field_region_banner_no() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_no'] ) ? (string) $settings['region_banner_no'] : '';
+
+		printf(
+			'<input type="text" id="kdna_rc_region_banner_no" name="%1$s[region_banner_no]" value="%2$s" class="regular-text" placeholder="%3$s" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $current ),
+			esc_attr__( 'No thanks', 'kdna-regional-content' )
+		);
 	}
 
 	/**

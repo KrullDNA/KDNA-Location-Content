@@ -1,0 +1,146 @@
+/*
+ * KDNA Regional Content : Region-switch banner styles.
+ *
+ * The banner is a small top-of-page strip that asks the visitor whether
+ * they would like to switch to the regional URL that matches their
+ * IP-detected region. Sticky-positioned so the prompt remains visible
+ * if they scroll, with a subtle slide-down entrance so it never feels
+ * like a flicker. Hidden until the JS layer decides to show it.
+ *
+ * Sizing/colours are conservative defaults that work against most
+ * themes. Anything site-specific can be overridden in the active
+ * theme stylesheet using the same class names.
+ */
+
+.kdna-rc-region-banner[hidden] {
+	display: none;
+}
+
+.kdna-rc-region-banner {
+	position: sticky;
+	top: 0;
+	z-index: 99990;
+	box-sizing: border-box;
+	width: 100%;
+	background: #1f2937;
+	color: #f9fafb;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.4;
+	box-shadow: 0 2px 6px rgba( 0, 0, 0, 0.18 );
+	transform: translateY( -100% );
+	transition: transform 0.25s ease;
+}
+
+.kdna-rc-region-banner.is-shown {
+	transform: translateY( 0 );
+}
+
+.kdna-rc-region-banner__inner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 10px 16px;
+}
+
+.kdna-rc-region-banner__flag {
+	display: inline-block;
+	width: 28px;
+	height: 20px;
+	border-radius: 2px;
+	flex: 0 0 auto;
+	background-size: cover;
+	background-position: center;
+}
+
+.kdna-rc-region-banner__flag:empty {
+	display: none;
+}
+
+.kdna-rc-region-banner__message {
+	flex: 1 1 auto;
+	margin: 0;
+	color: inherit;
+}
+
+.kdna-rc-region-banner__actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+}
+
+.kdna-rc-region-banner__yes,
+.kdna-rc-region-banner__no {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 14px;
+	border-radius: 4px;
+	font: inherit;
+	line-height: 1.2;
+	cursor: pointer;
+	text-decoration: none;
+	border: 1px solid transparent;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.kdna-rc-region-banner__yes {
+	background: #f9fafb;
+	color: #111827;
+	border-color: #f9fafb;
+}
+
+.kdna-rc-region-banner__yes:hover,
+.kdna-rc-region-banner__yes:focus-visible {
+	background: #e5e7eb;
+	border-color: #e5e7eb;
+	color: #111827;
+}
+
+.kdna-rc-region-banner__no {
+	background: transparent;
+	color: inherit;
+	border-color: rgba( 249, 250, 251, 0.5 );
+}
+
+.kdna-rc-region-banner__no:hover,
+.kdna-rc-region-banner__no:focus-visible {
+	background: rgba( 249, 250, 251, 0.12 );
+	border-color: #f9fafb;
+}
+
+.kdna-rc-region-banner__close {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 4px 8px;
+	flex: 0 0 auto;
+	opacity: 0.75;
+}
+
+.kdna-rc-region-banner__close:hover,
+.kdna-rc-region-banner__close:focus-visible {
+	opacity: 1;
+}
+
+@media ( max-width: 600px ) {
+	.kdna-rc-region-banner__inner {
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 10px 12px;
+	}
+
+	.kdna-rc-region-banner__message {
+		flex-basis: 100%;
+	}
+
+	.kdna-rc-region-banner__actions {
+		flex-wrap: wrap;
+	}
+}

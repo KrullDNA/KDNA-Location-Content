@@ -239,6 +239,11 @@ final class KDNA_RC_Plugin {
 		// as user properties and a one-shot kdna_resolution event.
 		( new KDNA_RC_Google_Analytics_Integration() )->init();
 
+		// Optional region-switch banner. Off by default. When on, shows
+		// a dismissible top-of-page prompt the first time the visitor's
+		// IP-detected region differs from the URL they landed on.
+		( new KDNA_RC_Region_Banner() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.
