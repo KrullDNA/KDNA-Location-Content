@@ -112,9 +112,15 @@ class KDNA_RC_Detector {
 	 * @return void
 	 */
 	public function ajax_detect_region() {
+		// Peek mode: detect the visitor's region without setting the
+		// cookie. Used by KDNA_RC_Region_Banner to know the IP-derived
+		// region even when the URL prefix has already forced a different
+		// region cookie. Pass `peek=1` on the request.
+		$peek = isset( $_REQUEST['peek'] ) && '' !== (string) $_REQUEST['peek']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public endpoint by design.
+
 		$result = $this->resolve_visitor_region();
 
-		if ( $result && ! empty( $result['slug'] ) ) {
+		if ( ! $peek && $result && ! empty( $result['slug'] ) ) {
 			$this->set_cookie( $result['slug'] );
 		}
 
@@ -128,6 +134,7 @@ class KDNA_RC_Detector {
 				'lang'   => isset( $result['lang'] ) ? $result['lang'] : '',
 				'dir'    => isset( $result['dir'] ) ? $result['dir'] : 'ltr',
 				'source' => isset( $result['source'] ) ? $result['source'] : 'none',
+				'peek'   => $peek,
 			)
 		);
 	}
@@ -515,6 +522,19 @@ class KDNA_RC_Detector {
 			$payload['setLanguageNonce']  = wp_create_nonce( 'kdna_rc_set_language' );
 			$payload['regionLanguageMap'] = $region_to_lang;
 		}
+
+		// Expose configured regions (used by the region-mismatch banner
+		// in v0.2.1). Always emitted, even on language-less sites,
+		// because the banner depends on regions rather than languages.
+		$regions_list = array();
+		foreach ( ( new KDNA_RC_Regions() )->get_all() as $region ) {
+			$regions_list[] = array(
+				'slug' => $region['slug'],
+				'name' => $region['name'],
+			);
+		}
+		$payload['regions']      = $regions_list;
+		$payload['regionCookie'] = self::COOKIE_NAME;
 
 		echo "<script id=\"kdna-rc-config\">window.kdnaRC = " . wp_json_encode( $payload ) . ";</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON encoding is the appropriate escape here.
 	}

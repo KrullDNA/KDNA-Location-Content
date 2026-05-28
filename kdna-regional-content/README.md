@@ -350,32 +350,55 @@ Stage 14 + Stage 15 turn each regional / language URL into a properly differenti
 - **Supplementary**: parallel sitemap at `/kdna-rc-sitemap.xml`, advertised in `robots.txt` and Yoast's sitemap index.
 - **Disabled**: no sitemap output from this plugin.
 
-## Yoast integration
+## SEO plugin compatibility
 
-Targets **Yoast SEO 21.x**. Hooked filters:
+The plugin auto-detects whichever SEO plugin is active and routes title, description, canonical, OG, and focus-keyphrase overrides through that plugin's filter chain. Eight plugins are supported out of the box.
+
+| SEO plugin | Detection check | Title / Description / Canonical / OG | Schema overrides | Sitemap injection |
+| --- | --- | --- | --- | --- |
+| **Yoast SEO** (≥ 21.x) | `WPSEO_VERSION` | ✓ | ✓ (LocalBusiness / Organization) | ✓ |
+| **Rank Math** (≥ 1.0) | `RANK_MATH_VERSION` / `RankMath` | ✓ | — | — |
+| **All in One SEO** (≥ 4.x) | `AIOSEO_VERSION` | ✓ (best-effort¹) | — | — |
+| **SEOPress** (≥ 7.x) | `SEOPRESS_VERSION` | ✓ | — | — |
+| **The SEO Framework** (≥ 5.x) | `THE_SEO_FRAMEWORK_VERSION` | ✓ | — | — |
+| **Slim SEO** (≥ 4.x) | `SLIM_SEO_VER` | ✓ (best-effort¹) | — | — |
+| **SmartCrawl** (≥ 3.x) | `SMARTCRAWL_VERSION` | ✓ | — | — |
+| **Squirrly SEO** (≥ 12.x) | `SQ_VERSION` | ✓ (best-effort²) | — | — |
+
+¹ AIOSEO and Slim SEO do not store per-post SEO data in flat post meta (AIOSEO uses a custom database table; Slim SEO uses a serialised array). Per-region / per-language overrides still work because the resolver hooks the plugin's filters at render time, but the **Default tab "currently shown" preview** in the SEO meta box may render blank — to see the active default, view it on the SEO plugin's own meta box.
+
+² Squirrly's filter surface is narrower; the title, description, OG title and OG description fields are intercepted, but canonical URL and OG image overrides are stored without a guaranteed render path on every Squirrly version.
+
+**Resolution priority.** Visitor-facing fields (title, description, OG copy) prefer the language slug over the region slug. The canonical URL is region-first because canonicals are inherently URL-tied. Schema fields (Yoast only) are region-first because LocalBusiness / Organization data is regionally bound. Bare URL = no override applied, the SEO plugin's default passes through unchanged.
+
+**Schema overrides** stay Yoast-only because every SEO plugin has a different schema architecture; porting LocalBusiness / Organization filters to Rank Math or AIOSEO would be a separate stage.
+
+**Sitemap integration** stays Yoast-only for the same reason.
+
+**Hreflang tags** are emitted by this plugin directly at `wp_head` priority 1 and are independent of which SEO plugin is active. Yoast Premium's own hreflang feature is auto-detected via `WPSEO_PREMIUM_FILE` and the plugin skips its own output to avoid duplicates.
+
+**Yoast filters hooked.** The Yoast adapter targets these filters specifically:
 
 | Filter | Purpose |
 | --- | --- |
 | `wpseo_title` | SEO title override (`_yoast_wpseo_title_{slug}`). Language-first resolution. |
 | `wpseo_metadesc` | Meta description override. Language-first. |
 | `wpseo_focuskw` | Focus keyphrase override (used in Yoast's analysis only). |
-| `wpseo_opengraph_title` | OG title override. Language-first. |
-| `wpseo_opengraph_desc` | OG description override. Language-first. |
-| `wpseo_opengraph_image` | OG image (resolves attachment ID → URL). |
-| `wpseo_twitter_title` / `wpseo_twitter_description` / `wpseo_twitter_image` | Twitter card overrides. |
+| `wpseo_opengraph_title` / `wpseo_opengraph_desc` / `wpseo_opengraph_image` | OG title / description / image overrides. Image stores attachment ID and resolves to URL at render time. |
 | `wpseo_canonical` | Canonical URL per the General-tab strategy (bare or each-self-canonical). Per-post canonical override beats both strategies. |
 | `wpseo_replacements` | Custom variable resolver: unwraps Stage 12 Multilingual Field values (`%%cf_my_field%%`) so titles and descriptions render the visitor language tab. |
 | `wpseo_schema_organization` / `wpseo_schema_local_business` | LocalBusiness / Organization regional address + phone overrides. |
 | `wpseo_sitemap_url` | Per-`<url>` extension when sitemap mode is **Extend**. |
 | `wpseo_sitemap_index_links` | Adds `kdna-rc-sitemap.xml` to the sitemap index when mode is **Supplementary**. |
 
-**Resolution priority.** Visitor-facing fields (titles, descriptions, OG / Twitter copy) prefer the language slug over the region slug. Region-bound fields (LocalBusiness address, phone, regional canonical) prefer the region. Bare URL = no override applied, Yoast's defaults pass through unchanged.
+The other SEO adapters hook the analogous filters in their own plugin's namespace (e.g. Rank Math's `rank_math/frontend/title`, SEOPress's `seopress_titles_single_titles`). The same per-region / per-language meta box drives all of them through a uniform contract.
 
-**Yoast Premium:** when `WPSEO_PREMIUM_FILE` is defined the plugin defers to Premium's hreflang feature and skips its own output to avoid duplicate tags.
+**Twitter card fields removed.** As of v0.1.7 the per-region Twitter Title / Description / Image inputs are no longer rendered. Modern social platforms (Twitter / X included) read OG tags by default and the duplicate inputs added editor friction without SEO benefit. Existing override rows in `wp_postmeta` are left intact in case admins want to re-enable Twitter editing via custom code.
 
 **Known limitations.**
-- Yoast occasionally renames schema-property filter names; the plugin targets the names current at the time of Stage 15 build. If the LocalBusiness override stops appearing on a Yoast major upgrade, check the `wpseo_schema_*` filter names.
-- Product schema overrides are deferred. Submit a feature request if you need per-region pricing / availability in JSON-LD.
+- Schema override coverage is Yoast-only (see table above).
+- Sitemap injection coverage is Yoast-only (see table above).
+- Rank Math, SEOPress, The SEO Framework, SmartCrawl, and Squirrly do not all expose a public canonical-URL filter; for those, this plugin still emits the URL-prefix-derived canonical via its own `wp_head` output, so canonical behaviour is correct on the front end even when the SEO plugin's filter is missing.
 - Sitemap supplementary mode caps at 5000 posts per XML file. Larger sites should use Extend mode.
 
 ## When to use this vs WPML

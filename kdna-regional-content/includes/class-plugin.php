@@ -234,6 +234,16 @@ final class KDNA_RC_Plugin {
 		( new KDNA_RC_Yoast_Schema_Integration() )->init();
 		( new KDNA_RC_SEO_Health_Check() )->init();
 
+		// Optional Google Analytics 4 integration. Off by default. When
+		// on, pushes the visitor's resolved region + language into GA4
+		// as user properties and a one-shot kdna_resolution event.
+		( new KDNA_RC_Google_Analytics_Integration() )->init();
+
+		// Optional region-switch banner. Off by default. When on, shows
+		// a dismissible top-of-page prompt the first time the visitor's
+		// IP-detected region differs from the URL they landed on.
+		( new KDNA_RC_Region_Banner() )->init();
+
 		// Stage 6 widget variant extensions. New widgets are added by
 		// appending to this list; everything else routes through the shared
 		// base class.
