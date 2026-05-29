@@ -435,7 +435,7 @@ class KDNA_RC_URL_Routing {
 			return;
 		}
 
-		$current_url = home_url( add_query_arg( null, null ) );
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
 		$prefix      = '/' . implode( '/', $prefix_parts ) . '/';
 		$home_path   = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 		$home_path   = '/' . trim( $home_path, '/' );
@@ -443,8 +443,8 @@ class KDNA_RC_URL_Routing {
 			$home_path .= '/';
 		}
 
-		$path  = (string) wp_parse_url( $current_url, PHP_URL_PATH );
-		$query = (string) wp_parse_url( $current_url, PHP_URL_QUERY );
+		$path  = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+		$query = (string) wp_parse_url( $request_uri, PHP_URL_QUERY );
 
 		// Defensive against infinite loops: bail if the URL already
 		// starts with the prefix we'd add.
