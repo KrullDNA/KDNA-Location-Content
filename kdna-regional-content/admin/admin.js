@@ -336,11 +336,20 @@
 		} );
 
 		// Auto-generate slug from name while the slug field has not been
-		// edited manually. Once the editor touches the slug we leave it alone.
+		// edited manually. Once the editor touches the slug we leave it
+		// alone. For single-country regions with a country already chosen,
+		// the country-picker handler owns the slug (using the ISO code),
+		// so we don't overwrite it from the name here.
 		$list.on( 'input', '.kdna-rc-input-name', function () {
 			var $editor = $( this ).closest( '.kdna-rc-region-editor' );
 			var $slug   = $editor.find( '.kdna-rc-input-slug' );
 			if ( $slug.data( 'manual' ) ) {
+				return;
+			}
+			var mode     = $editor.find( '.kdna-rc-input-type' ).val();
+			var selected = ( $editor.find( '.kdna-rc-country-picker' ).attr( 'data-selected' ) || '' )
+				.split( ',' ).filter( Boolean );
+			if ( mode === 'single' && selected.length === 1 ) {
 				return;
 			}
 			$slug.val( slugify( $( this ).val() ) );
@@ -378,6 +387,16 @@
 			$picker.find( '.kdna-rc-country-option input:checked' )
 				.closest( '.kdna-rc-country-option' )
 				.addClass( 'is-selected' );
+
+			// For single-country regions, prefer the ISO country code as the
+			// slug (au, nz, us) rather than a slugified name. Only fills the
+			// slug if the editor has not manually touched it.
+			var $editor = $picker.closest( '.kdna-rc-region-editor' );
+			var $slug   = $editor.find( '.kdna-rc-input-slug' );
+			var mode    = $editor.find( '.kdna-rc-input-type' ).val();
+			if ( mode === 'single' && selected.length === 1 && ! $slug.data( 'manual' ) ) {
+				$slug.val( selected[ 0 ].toLowerCase() );
+			}
 		} );
 
 		// Switching between Single and Group rebuilds the picker so radios
