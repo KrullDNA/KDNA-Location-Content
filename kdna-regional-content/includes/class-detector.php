@@ -118,7 +118,13 @@ class KDNA_RC_Detector {
 		// region cookie. Pass `peek=1` on the request.
 		$peek = isset( $_REQUEST['peek'] ) && '' !== (string) $_REQUEST['peek']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public endpoint by design.
 
-		$result = $this->resolve_visitor_region();
+		// In peek mode skip the URL-override + cookie tiers of the
+		// resolution chain: we specifically want the visitor's
+		// IP-derived region so the banner can detect a real geographic
+		// mismatch. Without this short-circuit a returning visitor
+		// whose cookie matches the URL would always resolve to that
+		// cookie value and the banner could never appear.
+		$result = $peek ? $this->resolve_geoip_region() : $this->resolve_visitor_region();
 
 		if ( ! $peek && $result && ! empty( $result['slug'] ) ) {
 			$this->set_cookie( $result['slug'] );
@@ -254,6 +260,45 @@ class KDNA_RC_Detector {
 		}
 
 		error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=none' );
+		return array(
+			'slug'   => '',
+			'lang'   => '',
+			'dir'    => 'ltr',
+			'source' => 'none',
+		);
+	}
+
+	/**
+	 * Resolve the visitor's region using only their IP address, ignoring
+	 * any existing kdna_region cookie or ?region= URL override.
+	 *
+	 * The region-switch banner needs the IP-derived region so it can spot
+	 * a geographic mismatch (visitor in AU but viewing /nz/ content).
+	 * resolve_visitor_region() can't answer that question because the
+	 * cookie tier short-circuits before geoip on returning visitors. Falls
+	 * back to the configured default region when geoip yields no match;
+	 * returns the empty payload only when there is no signal at all.
+	 *
+	 * @return array
+	 */
+	public function resolve_geoip_region() {
+		$ip   = $this->get_visitor_ip();
+		$code = $ip ? $this->geoip()->country_code( $ip ) : null;
+		if ( $code ) {
+			$region = $this->match_country_to_region( $code );
+			if ( $region ) {
+				return $this->payload( $region, 'geoip' );
+			}
+		}
+
+		$default_slug = $this->default_region_slug();
+		if ( $default_slug ) {
+			$region = $this->regions()->get( $default_slug );
+			if ( $region ) {
+				return $this->payload( $region, 'default' );
+			}
+		}
+
 		return array(
 			'slug'   => '',
 			'lang'   => '',
