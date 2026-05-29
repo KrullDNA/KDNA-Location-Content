@@ -61,12 +61,15 @@ class KDNA_RC_Region_Banner {
 	 * @return void
 	 */
 	public function init() {
+		error_log( sprintf( '[KDNA RC DEBUG] Region_Banner::init called. is_admin=%s', is_admin() ? 'yes' : 'no' ) );
 		if ( is_admin() ) {
 			return;
 		}
 		if ( ! $this->is_enabled() ) {
+			error_log( '[KDNA RC DEBUG] Region_Banner::init bailing — is_enabled returned false, hooks not wired' );
 			return;
 		}
+		error_log( '[KDNA RC DEBUG] Region_Banner::init wiring hooks (enqueue + render_shell)' );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_body_open', array( $this, 'render_shell' ), 5 );
 		// wp_body_open is the modern hook (WP 5.2+). Themes that have not
@@ -83,7 +86,14 @@ class KDNA_RC_Region_Banner {
 	 */
 	public function is_enabled() {
 		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
-		return is_array( $settings ) && ! empty( $settings['region_banner_enabled'] );
+		$enabled  = is_array( $settings ) && ! empty( $settings['region_banner_enabled'] );
+		error_log( sprintf(
+			'[KDNA RC DEBUG] Region_Banner::is_enabled — value=%s | region_banner_enabled key present=%s | settings keys=%s',
+			$enabled ? 'true' : 'false',
+			is_array( $settings ) && array_key_exists( 'region_banner_enabled', $settings ) ? 'yes' : 'no',
+			is_array( $settings ) ? implode( ',', array_keys( $settings ) ) : '(not an array)'
+		) );
+		return $enabled;
 	}
 
 	/**
