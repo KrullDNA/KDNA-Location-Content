@@ -207,13 +207,17 @@ class KDNA_RC_Detector {
 	 * @return array
 	 */
 	public function resolve_visitor_region() {
+		error_log( '[KDNA RC DEBUG] resolve_visitor_region called. backtrace caller=' . wp_debug_backtrace_summary( null, 2, false ) );
+
 		// 1. URL override.
 		$override = $this->read_url_override();
 		if ( $override ) {
 			$region = $this->regions()->get( $override );
 			if ( $region ) {
+				error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=override slug=' . $region['slug'] );
 				return $this->payload( $region, 'override' );
 			}
+			error_log( '[KDNA RC DEBUG] resolve_visitor_region: override=' . $override . ' but region not configured, falling through' );
 		}
 
 		// 2. Existing cookie.
@@ -221,16 +225,20 @@ class KDNA_RC_Detector {
 		if ( $cookie ) {
 			$region = $this->regions()->get( $cookie );
 			if ( $region ) {
+				error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=cookie slug=' . $region['slug'] );
 				return $this->payload( $region, 'cookie' );
 			}
+			error_log( '[KDNA RC DEBUG] resolve_visitor_region: cookie=' . $cookie . ' but region not configured, falling through' );
 		}
 
 		// 3. GeoIP.
 		$ip   = $this->get_visitor_ip();
 		$code = $ip ? $this->geoip()->country_code( $ip ) : null;
+		error_log( '[KDNA RC DEBUG] resolve_visitor_region: geoip ip=' . ( $ip ? $ip : 'none' ) . ' country=' . ( $code ? $code : 'none' ) );
 		if ( $code ) {
 			$region = $this->match_country_to_region( $code );
 			if ( $region ) {
+				error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=geoip slug=' . $region['slug'] );
 				return $this->payload( $region, 'geoip' );
 			}
 		}
@@ -240,10 +248,12 @@ class KDNA_RC_Detector {
 		if ( $default_slug ) {
 			$region = $this->regions()->get( $default_slug );
 			if ( $region ) {
+				error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=default slug=' . $region['slug'] );
 				return $this->payload( $region, 'default' );
 			}
 		}
 
+		error_log( '[KDNA RC DEBUG] resolve_visitor_region: source=none' );
 		return array(
 			'slug'   => '',
 			'lang'   => '',
@@ -358,11 +368,13 @@ class KDNA_RC_Detector {
 	 */
 	public function set_cookie( $slug ) {
 		$slug = sanitize_key( (string) $slug );
+		error_log( '[KDNA RC DEBUG] set_cookie called with slug=' . $slug . ' headers_sent=' . ( headers_sent() ? 'yes' : 'no' ) );
 		if ( '' === $slug ) {
 			return;
 		}
 
 		if ( headers_sent() ) {
+			error_log( '[KDNA RC DEBUG] set_cookie: headers already sent, cannot write cookie!' );
 			return;
 		}
 
@@ -424,18 +436,27 @@ class KDNA_RC_Detector {
 	 */
 	public function read_url_override() {
 		if ( empty( $_GET['region'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			error_log( '[KDNA RC DEBUG] read_url_override: no $_GET[region]' );
 			return '';
 		}
 
-		$mode = $this->get_override_mode();
+		$raw_value = isset( $_GET['region'] ) ? (string) wp_unslash( $_GET['region'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$mode      = $this->get_override_mode();
+		$is_admin  = current_user_can( 'manage_options' );
+		error_log( sprintf( '[KDNA RC DEBUG] read_url_override: $_GET[region]=%s mode=%s manage_options=%s user_id=%d', $raw_value, $mode, $is_admin ? 'yes' : 'no', get_current_user_id() ) );
+
 		if ( 'disabled' === $mode ) {
+			error_log( '[KDNA RC DEBUG] read_url_override: mode=disabled, returning empty' );
 			return '';
 		}
-		if ( 'admins' === $mode && ! current_user_can( 'manage_options' ) ) {
+		if ( 'admins' === $mode && ! $is_admin ) {
+			error_log( '[KDNA RC DEBUG] read_url_override: mode=admins but user lacks manage_options, returning empty' );
 			return '';
 		}
 
-		return sanitize_key( wp_unslash( $_GET['region'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$sanitized = sanitize_key( wp_unslash( $_GET['region'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		error_log( '[KDNA RC DEBUG] read_url_override: returning slug=' . $sanitized );
+		return $sanitized;
 	}
 
 	/**
@@ -448,19 +469,27 @@ class KDNA_RC_Detector {
 	 * @return void
 	 */
 	public function handle_url_override() {
+		error_log( sprintf( '[KDNA RC DEBUG] handle_url_override fired: request_uri=%s is_admin=%s doing_ajax=%s doing_cron=%s', isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '', is_admin() ? 'yes' : 'no', wp_doing_ajax() ? 'yes' : 'no', wp_doing_cron() ? 'yes' : 'no' ) );
+
 		if ( is_admin() && ! wp_doing_ajax() ) {
+			error_log( '[KDNA RC DEBUG] handle_url_override: bailing on admin request' );
 			return;
 		}
 		if ( wp_doing_cron() ) {
+			error_log( '[KDNA RC DEBUG] handle_url_override: bailing on cron' );
 			return;
 		}
 		$slug = $this->read_url_override();
 		if ( '' === $slug ) {
+			error_log( '[KDNA RC DEBUG] handle_url_override: read_url_override returned empty, not setting cookie' );
 			return;
 		}
 		$region = $this->regions()->get( $slug );
 		if ( $region ) {
+			error_log( '[KDNA RC DEBUG] handle_url_override: matched region, calling set_cookie(' . $region['slug'] . ')' );
 			$this->set_cookie( $region['slug'] );
+		} else {
+			error_log( '[KDNA RC DEBUG] handle_url_override: slug=' . $slug . ' is not a configured region, not setting cookie' );
 		}
 	}
 
