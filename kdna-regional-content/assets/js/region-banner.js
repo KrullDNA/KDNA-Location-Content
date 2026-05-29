@@ -73,11 +73,34 @@
 		return null;
 	}
 
+	// Normalised WordPress install path (always begins and ends with /,
+	// e.g. '/demo2/' for a subfolder install or '/' for a root install).
+	// Used to strip the install prefix before splitting on slashes and to
+	// re-prefix it when rebuilding switched URLs.
+	function homePath() {
+		var hp = ( cfg && cfg.homePath ) ? String( cfg.homePath ) : '/';
+		if ( hp.charAt( 0 ) !== '/' ) { hp = '/' + hp; }
+		if ( hp.charAt( hp.length - 1 ) !== '/' ) { hp += '/'; }
+		return hp;
+	}
+
+	// Strip the WordPress install path from a pathname so the remaining
+	// segments are relative to the home URL.
+	function relativeToHome( pathname ) {
+		var hp = homePath();
+		if ( '/' === hp ) { return pathname; }
+		if ( pathname.indexOf( hp ) === 0 ) {
+			return '/' + pathname.slice( hp.length );
+		}
+		return pathname;
+	}
+
 	// Split the current URL path into its prefix and remainder. Returns
 	// { region: 'au', language: 'fr', rest: 'about-us/' } where any
-	// missing piece is an empty string.
+	// missing piece is an empty string. Strips the WordPress install
+	// path (e.g. '/demo2/') first so subfolder installs work.
 	function parseCurrentPath() {
-		var path = window.location.pathname || '/';
+		var path = relativeToHome( window.location.pathname || '/' );
 		var trimmed = path.replace( /^\/+|\/+$/g, '' );
 		var parts = trimmed.length ? trimmed.split( '/' ) : [];
 
@@ -103,7 +126,8 @@
 
 	// Build a URL on the same site but with the supplied region prefix.
 	// Preserves any existing language prefix and the path's trailing
-	// slash. Always preserves query string and hash.
+	// slash. Always preserves query string and hash. Re-prefixes the
+	// WordPress install path so the URL stays inside the install.
 	function buildSwitchedUrl( newRegionSlug ) {
 		var parsed = parseCurrentPath();
 		var segments = [];
@@ -111,7 +135,7 @@
 		if ( parsed.language ) { segments.push( parsed.language ); }
 		if ( parsed.rest ) { segments.push( parsed.rest ); }
 
-		var newPath = '/' + segments.join( '/' );
+		var newPath = homePath() + segments.join( '/' );
 		// Mirror the trailing-slash behaviour of the current URL.
 		if ( window.location.pathname.length > 1 && window.location.pathname.slice( -1 ) === '/' && newPath.slice( -1 ) !== '/' ) {
 			newPath += '/';
