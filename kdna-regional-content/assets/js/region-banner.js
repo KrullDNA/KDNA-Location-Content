@@ -223,7 +223,13 @@
 			if ( ! detectedSlug ) { return; }
 
 			var parsed = parseCurrentPath();
-			var currentRegion = parsed.region || cfg.defaultRegion || '';
+			// Prefer the region the visitor is actually being shown:
+			// URL prefix wins, then the kdna_region cookie (sticky from
+			// a previous override or detection), then the configured
+			// default. Keeps the banner in sync with the content-swap
+			// layer so a traveler with a stale cookie still gets the
+			// "switch?" prompt.
+			var currentRegion = parsed.region || readCookie( 'kdna_region' ) || cfg.defaultRegion || '';
 
 			// Same region: nothing to suggest.
 			if ( detectedSlug === currentRegion.toLowerCase() ) { return; }
