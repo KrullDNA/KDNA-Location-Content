@@ -118,6 +118,8 @@ class KDNA_RC_Detector {
 		// region cookie. Pass `peek=1` on the request.
 		$peek = isset( $_REQUEST['peek'] ) && '' !== (string) $_REQUEST['peek']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public endpoint by design.
 
+		error_log( '[KDNA RC DEBUG] ajax_detect_region entered. peek=' . ( $peek ? '1' : '0' ) . ' build=peek-fix-v2' );
+
 		// In peek mode skip the URL-override + cookie tiers of the
 		// resolution chain: we specifically want the visitor's
 		// IP-derived region so the banner can detect a real geographic
@@ -284,9 +286,11 @@ class KDNA_RC_Detector {
 	public function resolve_geoip_region() {
 		$ip   = $this->get_visitor_ip();
 		$code = $ip ? $this->geoip()->country_code( $ip ) : null;
+		error_log( '[KDNA RC DEBUG] resolve_geoip_region called. ip=' . ( $ip ? $ip : 'none' ) . ' country=' . ( $code ? $code : 'none' ) );
 		if ( $code ) {
 			$region = $this->match_country_to_region( $code );
 			if ( $region ) {
+				error_log( '[KDNA RC DEBUG] resolve_geoip_region: source=geoip slug=' . $region['slug'] );
 				return $this->payload( $region, 'geoip' );
 			}
 		}
