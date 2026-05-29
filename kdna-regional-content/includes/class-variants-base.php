@@ -182,12 +182,18 @@ abstract class KDNA_RC_Variants_Base {
 		$element->add_control(
 			self::CTRL_REPEATER,
 			array(
-				'label'       => __( 'Variants', 'kdna-regional-content' ),
-				'type'        => defined( 'Elementor\\Controls_Manager::REPEATER' ) ? \Elementor\Controls_Manager::REPEATER : 'repeater',
-				'fields'      => $repeater->get_controls(),
-				'default'     => array(),
-				'title_field' => '{{{ ' . self::FIELD_REGION . ' }}}',
-				'description' => __( 'Add one row per region. Visitors in that region see this variant; everyone else sees the widget\'s default content.', 'kdna-regional-content' ),
+				'label'        => __( 'Variants', 'kdna-regional-content' ),
+				'type'         => defined( 'Elementor\\Controls_Manager::REPEATER' ) ? \Elementor\Controls_Manager::REPEATER : 'repeater',
+				'fields'       => $repeater->get_controls(),
+				'default'      => array(),
+				'title_field'  => '{{{ ' . self::FIELD_REGION . ' }}}',
+				'item_actions' => array(
+					'add'       => true,
+					'duplicate' => true,
+					'remove'    => true,
+					'sort'      => true,
+				),
+				'description'  => __( 'Add one row per region. Visitors in that region see this variant; everyone else sees the widget\'s default content.', 'kdna-regional-content' ),
 			)
 		);
 
@@ -261,12 +267,18 @@ abstract class KDNA_RC_Variants_Base {
 		$element->add_control(
 			self::LANG_REPEATER,
 			array(
-				'label'       => __( 'Variants', 'kdna-regional-content' ),
-				'type'        => defined( 'Elementor\\Controls_Manager::REPEATER' ) ? \Elementor\Controls_Manager::REPEATER : 'repeater',
-				'fields'      => $repeater->get_controls(),
-				'default'     => array(),
-				'title_field' => '{{{ ' . self::FIELD_LANGUAGE . ' }}}',
-				'description' => __( 'Add one row per language. When a visitor uses that language, this variant wins over any matching regional variant.', 'kdna-regional-content' ),
+				'label'        => __( 'Variants', 'kdna-regional-content' ),
+				'type'         => defined( 'Elementor\\Controls_Manager::REPEATER' ) ? \Elementor\Controls_Manager::REPEATER : 'repeater',
+				'fields'       => $repeater->get_controls(),
+				'default'      => array(),
+				'title_field'  => '{{{ ' . self::FIELD_LANGUAGE . ' }}}',
+				'item_actions' => array(
+					'add'       => true,
+					'duplicate' => true,
+					'remove'    => true,
+					'sort'      => true,
+				),
+				'description'  => __( 'Add one row per language. When a visitor uses that language, this variant wins over any matching regional variant.', 'kdna-regional-content' ),
 			)
 		);
 
