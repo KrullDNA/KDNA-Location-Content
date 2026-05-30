@@ -384,6 +384,96 @@ class KDNA_RC_Settings {
 			array( 'label_for' => 'kdna_rc_region_banner_no' )
 		);
 
+		add_settings_field(
+			'region_banner_logo_url',
+			__( 'Logo image', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_logo_url' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_logo_url' )
+		);
+
+		add_settings_field(
+			'region_banner_modal_bg',
+			__( 'Modal background', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_modal_bg' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_modal_bg' )
+		);
+
+		add_settings_field(
+			'region_banner_modal_text',
+			__( 'Modal text colour', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_modal_text' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_modal_text' )
+		);
+
+		add_settings_field(
+			'region_banner_yes_bg',
+			__( 'Yes button background', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_yes_bg' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_yes_bg' )
+		);
+
+		add_settings_field(
+			'region_banner_yes_text',
+			__( 'Yes button text colour', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_yes_text' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_yes_text' )
+		);
+
+		add_settings_field(
+			'region_banner_no_bg',
+			__( 'No button background', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_no_bg' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_no_bg' )
+		);
+
+		add_settings_field(
+			'region_banner_no_text',
+			__( 'No button text colour', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_no_text' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_no_text' )
+		);
+
+		add_settings_field(
+			'region_banner_no_border',
+			__( 'No button border colour', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_no_border' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_no_border' )
+		);
+
+		add_settings_field(
+			'region_banner_radius',
+			__( 'Corner radius (px)', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_radius' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_radius' )
+		);
+
+		add_settings_field(
+			'region_banner_max_width',
+			__( 'Modal max width (px)', 'kdna-regional-content' ),
+			array( $this, 'render_field_region_banner_max_width' ),
+			self::PAGE_SLUG . '-general',
+			'kdna_rc_section_region_banner',
+			array( 'label_for' => 'kdna_rc_region_banner_max_width' )
+		);
+
 		// Tools tab: auto-update schedule lives inside the same option key
 		// but is rendered on the Tools page so the UI stays grouped sensibly.
 		add_settings_section(
@@ -582,6 +672,50 @@ class KDNA_RC_Settings {
 		}
 		if ( array_key_exists( 'region_banner_no', $input ) ) {
 			$clean['region_banner_no'] = sanitize_text_field( wp_unslash( $input['region_banner_no'] ) );
+		}
+
+		// Region-switch banner styling. Logo URL is sanitised with
+		// esc_url_raw so only well-formed URLs survive; colours and
+		// numerics are validated by their own helpers.
+		if ( array_key_exists( 'region_banner_logo_url', $input ) ) {
+			$clean['region_banner_logo_url'] = esc_url_raw( wp_unslash( $input['region_banner_logo_url'] ) );
+		}
+		$colour_keys = array(
+			'region_banner_modal_bg',
+			'region_banner_modal_text',
+			'region_banner_yes_bg',
+			'region_banner_yes_text',
+			'region_banner_no_bg',
+			'region_banner_no_text',
+			'region_banner_no_border',
+		);
+		foreach ( $colour_keys as $key ) {
+			if ( array_key_exists( $key, $input ) ) {
+				$value = trim( (string) wp_unslash( $input[ $key ] ) );
+				// Accept the empty string (use default), a 3/6/8-digit
+				// hex colour, or rgba(...) / rgb(...) — covers HTML5
+				// colour picker output and admin-pasted CSS values.
+				if ( '' === $value || preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/', $value ) || preg_match( '/^rgba?\([^)]+\)$/i', $value ) ) {
+					$clean[ $key ] = $value;
+				}
+			}
+		}
+		$numeric_keys = array(
+			'region_banner_radius'    => array( 0, 64 ),
+			'region_banner_max_width' => array( 240, 1200 ),
+		);
+		foreach ( $numeric_keys as $key => $range ) {
+			if ( array_key_exists( $key, $input ) ) {
+				$value = trim( (string) wp_unslash( $input[ $key ] ) );
+				if ( '' === $value ) {
+					$clean[ $key ] = '';
+				} elseif ( ctype_digit( $value ) ) {
+					$int = (int) $value;
+					if ( $int >= $range[0] && $int <= $range[1] ) {
+						$clean[ $key ] = (string) $int;
+					}
+				}
+			}
 		}
 
 		return $clean;
@@ -1219,6 +1353,124 @@ class KDNA_RC_Settings {
 	}
 
 	/**
+	 * Render a single colour-picker styling field for the region banner.
+	 *
+	 * @param string $key         Option key (e.g. region_banner_modal_bg).
+	 * @param string $id          DOM id (e.g. kdna_rc_region_banner_modal_bg).
+	 * @param string $default_hex Hex string used as the field placeholder.
+	 * @return void
+	 */
+	private function render_banner_colour_field( $key, $id, $default_hex ) {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings[ $key ] ) ? (string) $settings[ $key ] : '';
+
+		// Two inputs side-by-side: a native colour picker for visual
+		// editing and a text input for pasting arbitrary CSS colours
+		// (rgba(), keywords, etc) that the picker cannot represent.
+		// They share a name; the text wins on save because it is later
+		// in the form. JS keeps them in sync on change.
+		printf(
+			'<input type="color" id="%1$s" value="%2$s" data-kdna-rc-colour-sync="#%1$s_text" />'
+			. ' <input type="text" id="%1$s_text" name="%3$s[%4$s]" value="%5$s" class="regular-text code" placeholder="%6$s" style="max-width:140px" data-kdna-rc-colour-sync="#%1$s" />',
+			esc_attr( $id ),
+			esc_attr( $this->banner_colour_for_picker( $current, $default_hex ) ),
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $key ),
+			esc_attr( $current ),
+			esc_attr( $default_hex )
+		);
+	}
+
+	/**
+	 * Normalise a stored colour to the 6-digit hex the native picker
+	 * accepts. rgba()/keywords/short hex all collapse to the supplied
+	 * fallback so the picker has something valid to display.
+	 *
+	 * @param string $stored      Raw saved value.
+	 * @param string $default_hex Hex fallback.
+	 * @return string
+	 */
+	private function banner_colour_for_picker( $stored, $default_hex ) {
+		$stored = trim( (string) $stored );
+		if ( '' === $stored ) {
+			return $default_hex;
+		}
+		if ( preg_match( '/^#[0-9a-fA-F]{6}$/', $stored ) ) {
+			return $stored;
+		}
+		return $default_hex;
+	}
+
+	/**
+	 * Render the optional logo URL field with a Media Library picker.
+	 *
+	 * @return void
+	 */
+	public function render_field_region_banner_logo_url() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_logo_url'] ) ? (string) $settings['region_banner_logo_url'] : '';
+
+		printf(
+			'<input type="url" id="kdna_rc_region_banner_logo_url" name="%1$s[region_banner_logo_url]" value="%2$s" class="regular-text code" placeholder="https://example.com/logo.svg" />',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $current )
+		);
+		printf(
+			' <button type="button" class="button kdna-rc-media-pick" data-target="#kdna_rc_region_banner_logo_url">%s</button>',
+			esc_html__( 'Choose from Media Library', 'kdna-regional-content' )
+		);
+		echo '<p class="description">' . esc_html__( 'Shown at the top of the modal. Leave blank to omit. PNG, JPG, or SVG; the modal sizes it to fit.', 'kdna-regional-content' ) . '</p>';
+	}
+
+	public function render_field_region_banner_modal_bg() {
+		$this->render_banner_colour_field( 'region_banner_modal_bg', 'kdna_rc_region_banner_modal_bg', '#ffffff' );
+	}
+
+	public function render_field_region_banner_modal_text() {
+		$this->render_banner_colour_field( 'region_banner_modal_text', 'kdna_rc_region_banner_modal_text', '#111827' );
+	}
+
+	public function render_field_region_banner_yes_bg() {
+		$this->render_banner_colour_field( 'region_banner_yes_bg', 'kdna_rc_region_banner_yes_bg', '#2271b1' );
+	}
+
+	public function render_field_region_banner_yes_text() {
+		$this->render_banner_colour_field( 'region_banner_yes_text', 'kdna_rc_region_banner_yes_text', '#ffffff' );
+	}
+
+	public function render_field_region_banner_no_bg() {
+		$this->render_banner_colour_field( 'region_banner_no_bg', 'kdna_rc_region_banner_no_bg', '#ffffff' );
+	}
+
+	public function render_field_region_banner_no_text() {
+		$this->render_banner_colour_field( 'region_banner_no_text', 'kdna_rc_region_banner_no_text', '#6b7280' );
+	}
+
+	public function render_field_region_banner_no_border() {
+		$this->render_banner_colour_field( 'region_banner_no_border', 'kdna_rc_region_banner_no_border', '#d1d5db' );
+	}
+
+	public function render_field_region_banner_radius() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_radius'] ) ? (string) $settings['region_banner_radius'] : '';
+		printf(
+			'<input type="number" id="kdna_rc_region_banner_radius" name="%1$s[region_banner_radius]" value="%2$s" min="0" max="64" step="1" class="small-text" placeholder="12" /> <code>px</code>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $current )
+		);
+	}
+
+	public function render_field_region_banner_max_width() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		$current  = isset( $settings['region_banner_max_width'] ) ? (string) $settings['region_banner_max_width'] : '';
+		printf(
+			'<input type="number" id="kdna_rc_region_banner_max_width" name="%1$s[region_banner_max_width]" value="%2$s" min="240" max="1200" step="10" class="small-text" placeholder="480" /> <code>px</code>',
+			esc_attr( KDNA_RC_OPTION_SETTINGS ),
+			esc_attr( $current )
+		);
+	}
+
+	/**
 	 * Render the introductory copy for the auto-update schedule section.
 	 *
 	 * @return void
@@ -1281,6 +1533,10 @@ class KDNA_RC_Settings {
 			array( 'kdna-rc-flag-icons' ),
 			KDNA_RC_VERSION
 		);
+
+		// Required so the Region Banner "Choose from Media Library"
+		// button can open wp.media() to pick a logo image.
+		wp_enqueue_media();
 
 		wp_enqueue_script(
 			'kdna-rc-admin',
