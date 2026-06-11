@@ -1515,4 +1515,53 @@
 			} );
 		}
 	}
+
+	// =====================================================================
+	// Settings tab : Region Banner styling helpers
+	// =====================================================================
+	// Paired colour picker + text input stay in sync so an admin can use
+	// the native picker for quick edits and the text input for keyword /
+	// rgba() values the picker cannot represent. Logo URL field opens
+	// wp.media() so the admin can pick an attachment instead of pasting.
+	$( function () {
+		$( document ).on( 'input change', '[data-kdna-rc-colour-sync]', function () {
+			var $self = $( this );
+			var targetSelector = $self.attr( 'data-kdna-rc-colour-sync' );
+			if ( ! targetSelector ) { return; }
+			var $target = $( targetSelector );
+			if ( ! $target.length ) { return; }
+			var value = $self.val();
+			// Only push hex values into the picker; arbitrary strings
+			// (rgba, keywords) typed into the text input would break the
+			// picker's internal state.
+			if ( $target.attr( 'type' ) === 'color' ) {
+				if ( /^#[0-9a-fA-F]{6}$/.test( value ) ) {
+					$target.val( value );
+				}
+			} else {
+				$target.val( value );
+			}
+		} );
+
+		$( document ).on( 'click', '.kdna-rc-media-pick', function ( e ) {
+			e.preventDefault();
+			var targetSelector = $( this ).attr( 'data-target' );
+			if ( ! targetSelector || typeof window.wp === 'undefined' || typeof window.wp.media !== 'function' ) {
+				return;
+			}
+			var frame = window.wp.media( {
+				title: 'Choose Logo Image',
+				button: { text: 'Use this image' },
+				multiple: false,
+				library: { type: 'image' }
+			} );
+			frame.on( 'select', function () {
+				var attachment = frame.state().get( 'selection' ).first().toJSON();
+				if ( attachment && attachment.url ) {
+					$( targetSelector ).val( attachment.url ).trigger( 'change' );
+				}
+			} );
+			frame.open();
+		} );
+	} );
 } )( jQuery );

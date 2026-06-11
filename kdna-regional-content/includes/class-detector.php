@@ -556,12 +556,19 @@ class KDNA_RC_Detector {
 			return;
 		}
 
+		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+		$home_path = '/' . trim( $home_path, '/' );
+		if ( '/' !== $home_path ) {
+			$home_path .= '/';
+		}
+
 		$payload = array(
 			'defaultRegion' => $this->default_region_slug(),
 			'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
 			'cookieName'    => self::COOKIE_NAME,
 			'detectAction'  => self::AJAX_ACTION,
 			'nonce'         => wp_create_nonce( 'kdna_rc_detect' ),
+			'homePath'      => $home_path,
 		);
 
 		// Stage 10: Language layer. Bundled additively so existing keys are

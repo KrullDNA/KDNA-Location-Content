@@ -130,6 +130,37 @@ class KDNA_RC_Region_Banner {
 	}
 
 	/**
+	 * Resolve the styling options bundle for the modal.
+	 *
+	 * Each property has a conservative default; blank values fall back so
+	 * an admin can leave most fields empty and only override the ones they
+	 * care about.
+	 *
+	 * @return array<string,string>
+	 */
+	public function style_settings() {
+		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+		$pick = function ( $key ) use ( $settings ) {
+			return isset( $settings[ $key ] ) ? (string) $settings[ $key ] : '';
+		};
+		return array(
+			'logoUrl'     => $pick( 'region_banner_logo_url' ),
+			'modalBg'     => $pick( 'region_banner_modal_bg' ),
+			'modalText'   => $pick( 'region_banner_modal_text' ),
+			'yesBg'       => $pick( 'region_banner_yes_bg' ),
+			'yesText'     => $pick( 'region_banner_yes_text' ),
+			'noBg'        => $pick( 'region_banner_no_bg' ),
+			'noText'      => $pick( 'region_banner_no_text' ),
+			'noBorder'    => $pick( 'region_banner_no_border' ),
+			'radius'      => $pick( 'region_banner_radius' ),
+			'maxWidth'    => $pick( 'region_banner_max_width' ),
+		);
+	}
+
+	/**
 	 * Enqueue the banner CSS + JS.
 	 *
 	 * @return void
@@ -164,6 +195,7 @@ class KDNA_RC_Region_Banner {
 				'peekAction'   => KDNA_RC_Detector::AJAX_ACTION,
 				'cookieDays'   => (int) ( new KDNA_RC_Detector() )->get_cookie_lifetime_days(),
 				'closeLabel'   => __( 'Close', 'kdna-regional-content' ),
+				'modalStyles'  => $this->style_settings(),
 			)
 		);
 	}
@@ -175,15 +207,15 @@ class KDNA_RC_Region_Banner {
 	 */
 	public function render_shell() {
 		?>
-<div id="kdna-rc-region-banner" class="kdna-rc-region-banner" role="region" aria-label="Region switcher" hidden>
+<div id="kdna-rc-region-banner" class="kdna-rc-region-banner" role="dialog" aria-modal="true" aria-label="Region switcher" hidden>
 	<div class="kdna-rc-region-banner__inner">
+		<button class="kdna-rc-region-banner__close" type="button" aria-label="<?php echo esc_attr__( 'Close', 'kdna-regional-content' ); ?>">&times;</button>
 		<span class="kdna-rc-region-banner__flag" aria-hidden="true"></span>
 		<p class="kdna-rc-region-banner__message"></p>
 		<div class="kdna-rc-region-banner__actions">
-			<a class="kdna-rc-region-banner__yes" href="#" role="button"></a>
 			<button class="kdna-rc-region-banner__no" type="button"></button>
+			<a class="kdna-rc-region-banner__yes" href="#" role="button"></a>
 		</div>
-		<button class="kdna-rc-region-banner__close" type="button" aria-label="<?php echo esc_attr__( 'Close', 'kdna-regional-content' ); ?>">&times;</button>
 	</div>
 </div>
 		<?php
@@ -204,17 +236,18 @@ class KDNA_RC_Region_Banner {
 		var el = document.createElement( 'div' );
 		el.id = 'kdna-rc-region-banner';
 		el.className = 'kdna-rc-region-banner';
-		el.setAttribute( 'role', 'region' );
+		el.setAttribute( 'role', 'dialog' );
+		el.setAttribute( 'aria-modal', 'true' );
 		el.setAttribute( 'aria-label', 'Region switcher' );
 		el.hidden = true;
 		el.innerHTML = '<div class="kdna-rc-region-banner__inner">' +
+			'<button class="kdna-rc-region-banner__close" type="button" aria-label="Close">&times;</button>' +
 			'<span class="kdna-rc-region-banner__flag" aria-hidden="true"></span>' +
 			'<p class="kdna-rc-region-banner__message"></p>' +
 			'<div class="kdna-rc-region-banner__actions">' +
-			'<a class="kdna-rc-region-banner__yes" href="#" role="button"></a>' +
 			'<button class="kdna-rc-region-banner__no" type="button"></button>' +
+			'<a class="kdna-rc-region-banner__yes" href="#" role="button"></a>' +
 			'</div>' +
-			'<button class="kdna-rc-region-banner__close" type="button" aria-label="Close">&times;</button>' +
 			'</div>';
 		document.body.insertBefore( el, document.body.firstChild );
 	}
