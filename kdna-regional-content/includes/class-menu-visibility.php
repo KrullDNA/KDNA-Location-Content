@@ -243,6 +243,11 @@ class KDNA_RC_Menu_Visibility {
 	/**
 	 * Resolve the visitor's region + language using the detector chain.
 	 *
+	 * Region uses the full KDNA_RC_Detector chain (URL override → cookie →
+	 * GeoIP → default). Language reads the URL-routing query var (set by
+	 * KDNA_RC_URL_Routing for prefixed URLs) first, then falls back to the
+	 * kdna_language cookie — mirroring how the SEO adapters resolve it.
+	 *
 	 * @return array{region:string,language:string}
 	 */
 	private function resolve_visitor() {
@@ -255,11 +260,13 @@ class KDNA_RC_Menu_Visibility {
 				$region = (string) $result['slug'];
 			}
 		}
-		if ( class_exists( 'KDNA_RC_Language_Detector' ) ) {
-			$lang_result = ( new KDNA_RC_Language_Detector() )->resolve_visitor_language();
-			if ( is_array( $lang_result ) && isset( $lang_result['slug'] ) ) {
-				$language = (string) $lang_result['slug'];
-			}
+
+		global $wp;
+		if ( $wp instanceof WP && ! empty( $wp->query_vars['kdna_language'] ) ) {
+			$language = sanitize_key( (string) $wp->query_vars['kdna_language'] );
+		}
+		if ( '' === $language && ! empty( $_COOKIE['kdna_language'] ) ) {
+			$language = sanitize_key( wp_unslash( $_COOKIE['kdna_language'] ) );
 		}
 
 		return array(
