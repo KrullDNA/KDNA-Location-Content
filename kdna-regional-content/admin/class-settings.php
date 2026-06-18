@@ -874,7 +874,7 @@ class KDNA_RC_Settings {
 			(int) $current
 		);
 		echo ' <span>' . esc_html__( 'days', 'kdna-regional-content' ) . '</span>';
-		echo '<p class="description">' . esc_html__( 'How long the kdna_region cookie persists in the visitor browser. Between 1 and 365 days. Default 30.', 'kdna-regional-content' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'How long the visitor\'s region preference is remembered in their browser. Between 1 and 365 days. Default 30.', 'kdna-regional-content' ) . '</p>';
 	}
 
 	/**
@@ -1218,7 +1218,7 @@ class KDNA_RC_Settings {
 
 		$choices = array(
 			'extend'        => __( 'Extend Yoast sitemap (recommended)', 'kdna-regional-content' ),
-			'supplementary' => __( 'Supplementary /kdna-rc-sitemap.xml', 'kdna-regional-content' ),
+			'supplementary' => __( 'Supplementary /regions-sitemap.xml', 'kdna-regional-content' ),
 			'disabled'      => __( 'Disabled', 'kdna-regional-content' ),
 		);
 
@@ -1233,7 +1233,7 @@ class KDNA_RC_Settings {
 			);
 		}
 		echo '</fieldset>';
-		echo '<p class="description">' . esc_html__( 'Extend mode injects xhtml:link siblings into Yoast\'s existing per-post-type sitemap. Supplementary mode adds a parallel /kdna-rc-sitemap.xml referenced from robots.txt and Yoast\'s sitemap index.', 'kdna-regional-content' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Extend mode injects xhtml:link siblings into Yoast\'s existing per-post-type sitemap. Supplementary mode adds a parallel /regions-sitemap.xml referenced from robots.txt and Yoast\'s sitemap index.', 'kdna-regional-content' ) . '</p>';
 	}
 
 	/**

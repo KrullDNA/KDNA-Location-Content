@@ -136,6 +136,12 @@ final class KDNA_RC_Plugin {
 		// Load translations as early as possible.
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 
+		// Flush rewrite rules once after a version bump that adds or
+		// renames a route (e.g. the sitemap URL change in 0.3.1).
+		// Plugin updates via zip overwrite don't fire register_activation_hook,
+		// so the version-compare on every boot is the only reliable signal.
+		add_action( 'init', array( $this, 'maybe_flush_rewrites' ), 99 );
+
 		// Database updater registers the cron schedule filter and the cron
 		// callback in every context (admin, front-end, cron) so scheduled
 		// runs work even when no admin is logged in.
@@ -285,6 +291,26 @@ final class KDNA_RC_Plugin {
 			false,
 			dirname( KDNA_RC_PLUGIN_BASENAME ) . '/languages'
 		);
+	}
+
+	/**
+	 * Flush rewrite rules once after the plugin code is upgraded to a new
+	 * version. Runs late on init (priority 99) so every other classes'
+	 * add_rewrite_rule() / add_rewrite_tag() calls have already registered.
+	 *
+	 * Stored option holds the last-flushed version. When it differs from
+	 * KDNA_RC_VERSION we flush + update — costs one extra option write
+	 * per release, never on subsequent requests.
+	 *
+	 * @return void
+	 */
+	public function maybe_flush_rewrites() {
+		$stored = get_option( 'kdna_rc_rewrites_version', '' );
+		if ( $stored === KDNA_RC_VERSION ) {
+			return;
+		}
+		flush_rewrite_rules( false );
+		update_option( 'kdna_rc_rewrites_version', KDNA_RC_VERSION, false );
 	}
 
 	/**
