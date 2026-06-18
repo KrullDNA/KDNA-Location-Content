@@ -786,4 +786,46 @@
 			return originalReplace( state, title, rewriteUrl( url ) );
 		};
 	} )();
+
+	// =================================================================
+	// JetSmartFilters AJAX re-filter
+	// =================================================================
+	// The initial server render flags hidden posts with data-kdna-show-in
+	// (via KDNA_RC_JetEngine_Integration) and the early walk below hides
+	// the elements whose region list excludes the visitor. JSF then runs
+	// its filter AJAX which re-renders the listing markup wholesale —
+	// the new DOM still carries data-kdna-show-in, but our walk only ran
+	// once at startup, so previously-hidden posts come back visible.
+	//
+	// Re-run the visibility + variant passes after each JSF render so
+	// the new DOM is filtered the same way the initial one was. Hook
+	// into the jQuery event JetSmartFilters emits after both the main
+	// "render" cycle and pagination cycle. Wrapped in try/catch because
+	// these handlers run inside JSF's promise chain — an exception here
+	// would break further JSF callbacks.
+	( function installJsfRefilter () {
+		if ( typeof window.jQuery !== 'function' ) {
+			return;
+		}
+		var $   = window.jQuery;
+		var events = [
+			'jet-smart-filters/render/done',
+			'jet-smart-filters/pagination/end-loading',
+			'jet-smart-filters/inserted-items',
+		].join( ' ' );
+
+		$( document ).on( events, function () {
+			var region   = ( window.kdnaRCResolved && window.kdnaRCResolved.region ) || cfg.defaultRegion || '';
+			var language = ( window.kdnaRCResolved && window.kdnaRCResolved.language ) || '';
+			try {
+				hydratePostVisibility();
+				applyVisibilityFilter( region );
+				applyVariantSwap( region, language );
+			} catch ( e ) {
+				if ( window.console && window.console.warn ) {
+					window.console.warn( '[KDNA RC] JSF re-filter failed', e );
+				}
+			}
+		} );
+	} )();
 } )();
