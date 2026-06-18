@@ -1250,17 +1250,17 @@ class KDNA_RC_Settings {
 			'<label><input type="checkbox" id="kdna_rc_google_analytics_integration" name="%1$s[google_analytics_integration]" value="1"%2$s /> %3$s</label>',
 			esc_attr( KDNA_RC_OPTION_SETTINGS ),
 			checked( $current, true, false ),
-			esc_html__( 'Push the visitor\'s resolved region and language into Google Analytics 4 as user properties and a kdna_resolution custom event.', 'kdna-regional-content' )
+			esc_html__( 'Push the visitor\'s resolved region and language into Google Analytics 4 as user properties and a website_resolution custom event.', 'kdna-regional-content' )
 		);
 		echo '<div class="description" style="margin-top:8px;">';
 		echo '<p style="margin:0 0 6px;"><strong>' . esc_html__( 'Setup steps:', 'kdna-regional-content' ) . '</strong></p>';
 		echo '<ol style="margin:0 0 6px 18px;">';
 		echo '<li>' . esc_html__( 'Install Google Analytics 4 on the site (Site Kit, MonsterInsights, Google Tag Manager, or raw gtag.js — anything that defines window.gtag).', 'kdna-regional-content' ) . '</li>';
 		echo '<li>' . wp_kses(
-			__( 'In GA4 <em>Admin &rarr; Custom Definitions &rarr; Create custom dimension</em>, create two event-scoped dimensions named <code>kdna_region</code> and <code>kdna_language</code>.', 'kdna-regional-content' ),
+			__( 'In GA4 <em>Admin &rarr; Custom Definitions &rarr; Create custom dimension</em>, create two event-scoped dimensions named <code>website_region</code> and <code>website_language</code>.', 'kdna-regional-content' ),
 			array( 'em' => array(), 'code' => array() )
 		) . '</li>';
-		echo '<li>' . esc_html__( 'Wait 24 hours for GA4 to start populating data. Then break any report down by kdna_region or kdna_language.', 'kdna-regional-content' ) . '</li>';
+		echo '<li>' . esc_html__( 'Wait 24 hours for GA4 to start populating data. Then break any report down by website_region or website_language.', 'kdna-regional-content' ) . '</li>';
 		echo '</ol>';
 		echo '<p style="margin:0;"><em>' . esc_html__( 'Safe to leave on even if GA is not yet installed: the snippet is a no-op until window.gtag exists.', 'kdna-regional-content' ) . '</em></p>';
 		echo '</div>';
