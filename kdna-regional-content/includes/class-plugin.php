@@ -176,6 +176,8 @@ final class KDNA_RC_Plugin {
 		$this->post_visibility = new KDNA_RC_Post_Visibility();
 		$this->post_visibility->init();
 
+		( new KDNA_RC_Menu_Visibility() )->init();
+
 		$this->jetengine = new KDNA_RC_JetEngine_Integration();
 		$this->jetengine->init();
 
