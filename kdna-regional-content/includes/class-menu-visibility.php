@@ -66,7 +66,14 @@ class KDNA_RC_Menu_Visibility {
 		$saved_regions   = $this->get_item_regions( (int) $item_id );
 		$saved_languages = $this->get_item_languages( (int) $item_id );
 
-		wp_nonce_field( 'kdna_rc_menu_item_' . $item_id, 'kdna_rc_menu_item_nonce' );
+		// Per-item nonce: the Appearance → Menus screen renders this
+		// callback once per item, so a single shared field name like
+		// "kdna_rc_menu_item_nonce" collides — only the last item's
+		// hidden input survives the POST and every other item fails
+		// verification on save. Suffixing with the item ID gives each
+		// row its own distinct field, and the save handler looks it
+		// up by the menu item ID it's currently processing.
+		wp_nonce_field( 'kdna_rc_menu_item_' . $item_id, 'kdna_rc_menu_item_nonce_' . $item_id );
 
 		if ( ! empty( $regions ) ) {
 			echo '<p class="description description-wide kdna-rc-menu-visibility-regions">';
@@ -122,7 +129,8 @@ class KDNA_RC_Menu_Visibility {
 			return;
 		}
 
-		$nonce = isset( $_POST['kdna_rc_menu_item_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['kdna_rc_menu_item_nonce'] ) ) : '';
+		$nonce_key = 'kdna_rc_menu_item_nonce_' . $menu_item_db_id;
+		$nonce     = isset( $_POST[ $nonce_key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $nonce_key ] ) ) : '';
 		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'kdna_rc_menu_item_' . $menu_item_db_id ) ) {
 			return;
 		}
