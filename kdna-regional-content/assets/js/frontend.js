@@ -664,4 +664,126 @@
 	} else {
 		start();
 	}
+
+	// =================================================================
+	// URL prefix preservation shim
+	// =================================================================
+	// JetSmartFilters (and similar plugins that build "permalink"-style
+	// filter URLs from home_url() rather than the current page URL) push
+	// new URLs through history.pushState/replaceState that drop the
+	// /au/ region prefix. The visitor's address bar then reads as a
+	// bare URL, which works for that one request (the URL routing
+	// layer handles bare URLs via geoip/cookie) but loses the explicit
+	// region context on bookmark or share.
+	//
+	// Shim: wrap pushState/replaceState. When the supplied URL is on
+	// the same origin and the current pathname HAS a region/language
+	// prefix but the new pathname does NOT, re-inject the prefix
+	// directly after the WordPress install path. Only does anything
+	// when the current page already has a prefix, so we never break
+	// legitimate navigation to non-prefixed URLs.
+	( function installPrefixShim () {
+		if ( ! window.history || typeof window.history.pushState !== 'function' ) {
+			return;
+		}
+		if ( ! cfg || ! cfg.regions || ! cfg.regions.length ) {
+			return;
+		}
+
+		var homePath = ( cfg && cfg.homePath ) ? String( cfg.homePath ) : '/';
+		if ( homePath.charAt( 0 ) !== '/' ) { homePath = '/' + homePath; }
+		if ( homePath.charAt( homePath.length - 1 ) !== '/' ) { homePath += '/'; }
+
+		function slugList ( source ) {
+			var out = [];
+			if ( source && source.length ) {
+				for ( var i = 0; i < source.length; i++ ) {
+					if ( source[ i ] && source[ i ].slug ) {
+						out.push( String( source[ i ].slug ).toLowerCase() );
+					}
+				}
+			}
+			return out;
+		}
+
+		var regionSlugs   = slugList( cfg.regions );
+		var languageSlugs = slugList( cfg.languages );
+
+		function stripHome ( pathname ) {
+			if ( '/' === homePath ) { return pathname; }
+			if ( pathname.indexOf( homePath ) === 0 ) {
+				return '/' + pathname.slice( homePath.length );
+			}
+			return pathname;
+		}
+
+		// Return { region: 'au', language: '' } for the supplied pathname.
+		function parsePrefix ( pathname ) {
+			var relative = stripHome( pathname || '/' );
+			var trimmed  = relative.replace( /^\/+|\/+$/g, '' );
+			var parts    = trimmed.length ? trimmed.split( '/' ) : [];
+			var detectedRegion   = '';
+			var detectedLanguage = '';
+			if ( parts.length > 0 && regionSlugs.indexOf( parts[0].toLowerCase() ) !== -1 ) {
+				detectedRegion = parts.shift().toLowerCase();
+			}
+			if ( parts.length > 0 && languageSlugs.indexOf( parts[0].toLowerCase() ) !== -1 ) {
+				detectedLanguage = parts.shift().toLowerCase();
+			}
+			return { region: detectedRegion, language: detectedLanguage };
+		}
+
+		// Rebuild a URL putting the supplied prefix back in front of the
+		// content portion of the path.
+		function injectPrefix ( pathname, prefix ) {
+			var relative = stripHome( pathname || '/' );
+			var segments = [];
+			if ( prefix.region ) { segments.push( prefix.region ); }
+			if ( prefix.language ) { segments.push( prefix.language ); }
+			var tail = relative.replace( /^\/+/, '' );
+			if ( tail.length ) { segments.push( tail ); }
+			var rebuilt = homePath + segments.join( '/' );
+			if ( pathname.length > 1 && pathname.slice( -1 ) === '/' && rebuilt.slice( -1 ) !== '/' ) {
+				rebuilt += '/';
+			}
+			return rebuilt;
+		}
+
+		function rewriteUrl ( urlArg ) {
+			if ( typeof urlArg !== 'string' || urlArg.length === 0 ) {
+				return urlArg;
+			}
+			var parsed;
+			try {
+				parsed = new URL( urlArg, window.location.href );
+			} catch ( e ) {
+				return urlArg;
+			}
+			if ( parsed.origin !== window.location.origin ) {
+				return urlArg;
+			}
+
+			var currentPrefix = parsePrefix( window.location.pathname );
+			if ( ! currentPrefix.region && ! currentPrefix.language ) {
+				return urlArg;
+			}
+			var newPrefix = parsePrefix( parsed.pathname );
+			if ( newPrefix.region === currentPrefix.region && newPrefix.language === currentPrefix.language ) {
+				return urlArg;
+			}
+
+			parsed.pathname = injectPrefix( parsed.pathname, currentPrefix );
+			return parsed.pathname + parsed.search + parsed.hash;
+		}
+
+		var originalPush    = window.history.pushState.bind( window.history );
+		var originalReplace = window.history.replaceState.bind( window.history );
+
+		window.history.pushState = function ( state, title, url ) {
+			return originalPush( state, title, rewriteUrl( url ) );
+		};
+		window.history.replaceState = function ( state, title, url ) {
+			return originalReplace( state, title, rewriteUrl( url ) );
+		};
+	} )();
 } )();
