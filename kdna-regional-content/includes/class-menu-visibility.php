@@ -254,14 +254,22 @@ class KDNA_RC_Menu_Visibility {
 		$region   = '';
 		$language = '';
 
-		if ( class_exists( 'KDNA_RC_Detector' ) ) {
+		// URL-routing query var first. KDNA_RC_URL_Routing parses a leading
+		// /au/ or /au/en/ prefix and sets kdna_region / kdna_language on the
+		// WP query vars at parse_request. Reading those first means a visit
+		// to /nz/ always resolves as NZ regardless of the kdna_region
+		// cookie value left over from a previous AU visit.
+		global $wp;
+		if ( $wp instanceof WP && ! empty( $wp->query_vars['kdna_region'] ) ) {
+			$region = sanitize_key( (string) $wp->query_vars['kdna_region'] );
+		}
+		if ( '' === $region && class_exists( 'KDNA_RC_Detector' ) ) {
 			$result = ( new KDNA_RC_Detector() )->resolve_visitor_region();
 			if ( is_array( $result ) && isset( $result['slug'] ) ) {
 				$region = (string) $result['slug'];
 			}
 		}
 
-		global $wp;
 		if ( $wp instanceof WP && ! empty( $wp->query_vars['kdna_language'] ) ) {
 			$language = sanitize_key( (string) $wp->query_vars['kdna_language'] );
 		}
