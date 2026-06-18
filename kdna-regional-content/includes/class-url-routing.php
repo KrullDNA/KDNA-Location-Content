@@ -76,6 +76,15 @@ class KDNA_RC_URL_Routing {
 	private $prefix_was_present = false;
 
 	/**
+	 * Whether the visitor asked for a bare region/language prefix
+	 * (e.g. /au/ with nothing after it). Used to force the static-page
+	 * homepage when Settings → Reading is configured for one.
+	 *
+	 * @var bool
+	 */
+	private $bare_prefix = false;
+
+	/**
 	 * Wire up hooks.
 	 *
 	 * @return void
@@ -272,6 +281,7 @@ class KDNA_RC_URL_Routing {
 		$this->detected_region         = $detected_region;
 		$this->detected_language       = $detected_language;
 		$this->prefix_was_present      = true;
+		$this->bare_prefix             = ( '' === ltrim( $remainder, '/' ) );
 
 		return $do_parse;
 	}
@@ -293,6 +303,19 @@ class KDNA_RC_URL_Routing {
 		}
 		if ( '' !== $this->detected_language ) {
 			$wp->query_vars['kdna_language'] = $this->detected_language;
+		}
+
+		// Bare-prefix homepage rescue: a visitor at /au/ (or /au/en/)
+		// hit a URL we rewrote to the WordPress root. Adding our query
+		// vars sidesteps WP's "main query is empty → serve front page"
+		// detection, so a Settings → Reading "static page" homepage
+		// falls back to the blog index. Explicitly point WP at the
+		// configured front-page post when that setting is active.
+		if ( $this->bare_prefix && 'page' === get_option( 'show_on_front' ) ) {
+			$front_page_id = (int) get_option( 'page_on_front' );
+			if ( $front_page_id > 0 && empty( $wp->query_vars['page_id'] ) && empty( $wp->query_vars['pagename'] ) ) {
+				$wp->query_vars['page_id'] = $front_page_id;
+			}
 		}
 	}
 
