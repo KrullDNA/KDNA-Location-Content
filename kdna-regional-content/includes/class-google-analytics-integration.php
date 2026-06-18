@@ -21,8 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   1. gtag('set', 'user_properties', {...}) so the region and language
  *      attach to every subsequent event in the session (clicks, scrolls,
  *      conversions, e-commerce, the whole graph).
- *   2. gtag('event', 'kdna_resolution', {...}) as a one-shot custom event
- *      so the resolution itself is logged and reportable.
+ *   2. gtag('event', 'website_resolution', {...}) as a one-shot custom
+ *      event so the resolution itself is logged and reportable.
  *
  * The snippet does nothing when gtag is undefined, so it is safe to
  * leave on even when Google Analytics is not loaded yet (development,
@@ -35,10 +35,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   - Install Google Analytics on the site via gtag.js, Google Tag
  *     Manager, or any GA4 plugin (Site Kit, MonsterInsights, etc.).
  *   - In GA4 Admin -> Custom Definitions, create two event-scoped
- *     custom dimensions: kdna_region and kdna_language.
+ *     custom dimensions: website_region and website_language.
  *   - Wait 24 hours for GA4 to start populating them in reports.
  *   - Build any GA4 report (Acquisition, Engagement, Monetization)
- *     and add kdna_region as a secondary dimension or filter.
+ *     and add website_region as a secondary dimension or filter.
  */
 class KDNA_RC_Google_Analytics_Integration {
 
@@ -97,14 +97,14 @@ class KDNA_RC_Google_Analytics_Integration {
 
 		// User properties propagate to every event in this session.
 		window.gtag( 'set', 'user_properties', {
-			kdna_region:   region,
-			kdna_language: language
+			website_region:   region,
+			website_language: language
 		} );
 
 		// One-shot custom event for explicit logging.
-		window.gtag( 'event', 'kdna_resolution', {
-			kdna_region:   region,
-			kdna_language: language
+		window.gtag( 'event', 'website_resolution', {
+			website_region:   region,
+			website_language: language
 		} );
 	}
 
