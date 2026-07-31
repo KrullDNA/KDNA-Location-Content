@@ -78,15 +78,25 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control( 'display_mode', array(
-			'label'   => esc_html__( 'Display Mode', 'kdna-regional-content' ),
+			'label'   => esc_html__( 'Trigger Display', 'kdna-regional-content' ),
 			'type'    => \Elementor\Controls_Manager::CHOOSE,
 			'options' => array(
-				'text'      => array( 'title' => esc_html__( 'Text Only', 'kdna-regional-content' ), 'icon' => 'eicon-typography' ),
+				'icon'      => array( 'title' => esc_html__( 'Icon Only', 'kdna-regional-content' ), 'icon' => 'eicon-globe' ),
 				'flag'      => array( 'title' => esc_html__( 'Flag Only', 'kdna-regional-content' ), 'icon' => 'eicon-flag' ),
-				'flag_text' => array( 'title' => esc_html__( 'Text and Flag', 'kdna-regional-content' ), 'icon' => 'eicon-globe' ),
+				'text'      => array( 'title' => esc_html__( 'Text Only', 'kdna-regional-content' ), 'icon' => 'eicon-typography' ),
+				'flag_text' => array( 'title' => esc_html__( 'Text and Flag', 'kdna-regional-content' ), 'icon' => 'eicon-post-title' ),
 			),
-			'default' => 'flag_text',
+			'default' => 'icon',
 			'toggle'  => false,
+			'description' => esc_html__( 'What the visible header trigger shows. The dropdown always shows the flag and name for each region.', 'kdna-regional-content' ),
+		) );
+
+		$this->add_control( 'trigger_icon', array(
+			'label'     => esc_html__( 'Trigger Icon', 'kdna-regional-content' ),
+			'type'      => \Elementor\Controls_Manager::ICONS,
+			'default'   => array( 'value' => 'fas fa-globe', 'library' => 'fa-solid' ),
+			'skin'      => 'inline',
+			'condition' => array( 'display_mode' => 'icon' ),
 		) );
 
 		$this->add_control( 'show_current_first', array(
@@ -148,10 +158,11 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 		) );
 
 		$this->add_control( 'arrow_icon', array(
-			'label'   => esc_html__( 'Dropdown Arrow Icon', 'kdna-regional-content' ),
-			'type'    => \Elementor\Controls_Manager::ICONS,
-			'default' => array( 'value' => 'fas fa-chevron-down', 'library' => 'fa-solid' ),
-			'skin'    => 'inline',
+			'label'     => esc_html__( 'Dropdown Arrow Icon', 'kdna-regional-content' ),
+			'type'      => \Elementor\Controls_Manager::ICONS,
+			'default'   => array( 'value' => 'fas fa-chevron-down', 'library' => 'fa-solid' ),
+			'skin'      => 'inline',
+			'condition' => array( 'display_mode!' => 'icon' ),
 		) );
 
 		$this->end_controls_section();
@@ -532,17 +543,25 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 				aria-label="<?php echo esc_attr__( 'Choose region', 'kdna-regional-content' ); ?>">
 				<?php
 				$current_flag = $current ? $this->region_flag_code( $current ) : '';
-				if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && '' !== $current_flag ) : ?>
-					<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $current_flag ); ?>" aria-hidden="true"></span>
+				if ( 'icon' === $display_mode ) : ?>
+					<span class="kdna-rc-rs-icon" aria-hidden="true">
+						<?php if ( ! empty( $settings['trigger_icon'] ) ) {
+							\Elementor\Icons_Manager::render_icon( $settings['trigger_icon'], array( 'aria-hidden' => 'true' ) );
+						} ?>
+					</span>
+				<?php else : ?>
+					<?php if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && '' !== $current_flag ) : ?>
+						<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $current_flag ); ?>" aria-hidden="true"></span>
+					<?php endif; ?>
+					<?php if ( $current && in_array( $display_mode, array( 'text', 'flag_text' ), true ) ) : ?>
+						<span class="kdna-rc-rs-label"><?php echo esc_html( $current['name'] ); ?></span>
+					<?php endif; ?>
+					<span class="kdna-rc-rs-arrow" aria-hidden="true">
+						<?php if ( ! empty( $settings['arrow_icon'] ) ) {
+							\Elementor\Icons_Manager::render_icon( $settings['arrow_icon'], array( 'aria-hidden' => 'true' ) );
+						} ?>
+					</span>
 				<?php endif; ?>
-				<?php if ( $current && in_array( $display_mode, array( 'text', 'flag_text' ), true ) ) : ?>
-					<span class="kdna-rc-rs-label"><?php echo esc_html( $current['name'] ); ?></span>
-				<?php endif; ?>
-				<span class="kdna-rc-rs-arrow" aria-hidden="true">
-					<?php if ( ! empty( $settings['arrow_icon'] ) ) {
-						\Elementor\Icons_Manager::render_icon( $settings['arrow_icon'], array( 'aria-hidden' => 'true' ) );
-					} ?>
-				</span>
 			</button>
 
 			<ul class="kdna-rc-rs-panel"
@@ -560,12 +579,17 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 						aria-selected="<?php echo $is_selected ? 'true' : 'false'; ?>"
 						data-slug="<?php echo esc_attr( $region['slug'] ); ?>">
 						<a href="<?php echo esc_url( $href ); ?>" class="kdna-rc-rs-link">
-							<?php if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && '' !== $flag_code ) : ?>
+							<?php if ( '' !== $flag_code ) : ?>
 								<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $flag_code ); ?>" aria-hidden="true"></span>
+							<?php else : ?>
+								<span class="kdna-rc-rs-flag kdna-rc-rs-flag--empty" aria-hidden="true"></span>
 							<?php endif; ?>
-							<?php if ( in_array( $display_mode, array( 'text', 'flag_text' ), true ) ) : ?>
-								<span class="kdna-rc-rs-label"><?php echo esc_html( $region['name'] ); ?></span>
-							<?php endif; ?>
+							<span class="kdna-rc-rs-label"><?php echo esc_html( $region['name'] ); ?></span>
+							<span class="kdna-rc-rs-tick" aria-hidden="true">
+								<?php if ( $is_selected ) : ?>
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4.5"/></svg>
+								<?php endif; ?>
+							</span>
 						</a>
 					</li>
 				<?php endforeach; ?>
@@ -605,32 +629,48 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 		<# } else { #>
 		<div class="kdna-rc-rs kdna-rc-rs--mode-{{ displayMode }} kdna-rc-rs--pos-{{ position }}" data-current="{{ current.slug }}">
 			<button type="button" class="kdna-rc-rs-trigger" aria-haspopup="listbox" aria-expanded="false">
-				<# if ( showFlag && current.flag ) { #>
-					<span class="kdna-rc-rs-flag fi fi-{{ current.flag }}" aria-hidden="true"></span>
+				<# if ( 'icon' === displayMode ) { #>
+					<span class="kdna-rc-rs-icon" aria-hidden="true">
+						<#
+						var triggerIconHTML = elementor.helpers.renderIcon( view, settings.trigger_icon, { 'aria-hidden': 'true' }, 'i', 'object' );
+						if ( triggerIconHTML && triggerIconHTML.rendered ) { #>{{{ triggerIconHTML.value }}}<# }
+						#>
+					</span>
+				<# } else { #>
+					<# if ( showFlag && current.flag ) { #>
+						<span class="kdna-rc-rs-flag fi fi-{{ current.flag }}" aria-hidden="true"></span>
+					<# } #>
+					<# if ( showText ) { #>
+						<span class="kdna-rc-rs-label">{{{ current.name }}}</span>
+					<# } #>
+					<span class="kdna-rc-rs-arrow" aria-hidden="true">
+						<#
+						var iconHTML = elementor.helpers.renderIcon( view, settings.arrow_icon, { 'aria-hidden': 'true' }, 'i', 'object' );
+						if ( iconHTML && iconHTML.rendered ) { #>{{{ iconHTML.value }}}<# }
+						#>
+					</span>
 				<# } #>
-				<# if ( showText ) { #>
-					<span class="kdna-rc-rs-label">{{{ current.name }}}</span>
-				<# } #>
-				<span class="kdna-rc-rs-arrow" aria-hidden="true">
-					<#
-					var iconHTML = elementor.helpers.renderIcon( view, settings.arrow_icon, { 'aria-hidden': 'true' }, 'i', 'object' );
-					if ( iconHTML && iconHTML.rendered ) { #>{{{ iconHTML.value }}}<# }
-					#>
-				</span>
 			</button>
 			<ul class="kdna-rc-rs-panel" role="listbox" hidden>
-				<# _.each( regions, function ( r ) { #>
-					<li class="kdna-rc-rs-option<# if ( current && r.slug === current.slug ) { #> is-active<# } #>"
+				<# _.each( regions, function ( r ) {
+					var isSelected = current && r.slug === current.slug;
+					#>
+					<li class="kdna-rc-rs-option<# if ( isSelected ) { #> is-active<# } #>"
 						role="option"
-						aria-selected="<# if ( current && r.slug === current.slug ) { #>true<# } else { #>false<# } #>"
+						aria-selected="<# if ( isSelected ) { #>true<# } else { #>false<# } #>"
 						data-slug="{{ r.slug }}">
 						<a href="#" class="kdna-rc-rs-link">
-							<# if ( showFlag && r.flag ) { #>
+							<# if ( r.flag ) { #>
 								<span class="kdna-rc-rs-flag fi fi-{{ r.flag }}" aria-hidden="true"></span>
+							<# } else { #>
+								<span class="kdna-rc-rs-flag kdna-rc-rs-flag--empty" aria-hidden="true"></span>
 							<# } #>
-							<# if ( showText ) { #>
-								<span class="kdna-rc-rs-label">{{{ r.name }}}</span>
-							<# } #>
+							<span class="kdna-rc-rs-label">{{{ r.name }}}</span>
+							<span class="kdna-rc-rs-tick" aria-hidden="true">
+								<# if ( isSelected ) { #>
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4.5"/></svg>
+								<# } #>
+							</span>
 						</a>
 					</li>
 				<# } ); #>

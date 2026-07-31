@@ -3,7 +3,7 @@
  * Plugin Name:       KDNA Regional Content
  * Plugin URI:        https://krulldna.com/
  * Description:       Serves region-specific content variants and visibility rules in Elementor based on visitor geolocation, with full-page cache compatibility.
- * Version:           0.4.1
+ * Version:           0.4.2
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Krull Design and Advertising (KDNA)
@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * to produce a "Constant already defined" warning.
  */
 if ( ! defined( 'KDNA_RC_VERSION' ) ) {
-	define( 'KDNA_RC_VERSION', '0.4.1' );
+	define( 'KDNA_RC_VERSION', '0.4.2' );
 }
 if ( ! defined( 'KDNA_RC_PLUGIN_FILE' ) ) {
 	define( 'KDNA_RC_PLUGIN_FILE', __FILE__ );

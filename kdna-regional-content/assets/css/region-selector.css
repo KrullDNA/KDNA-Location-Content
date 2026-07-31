@@ -27,6 +27,32 @@
 	line-height: 1.4;
 }
 
+/*
+ * Icon-only trigger: no border, no padding by default, just the glyph.
+ * Style tab controls can add background / border / padding when the
+ * design calls for a pill or a filled circle around it.
+ */
+.kdna-rc-rs--mode-icon .kdna-rc-rs-trigger {
+	border: none;
+	padding: 4px;
+	gap: 0;
+}
+
+.kdna-rc-rs-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	line-height: 1;
+}
+
+.kdna-rc-rs-icon svg,
+.kdna-rc-rs-icon i {
+	width: 1em;
+	height: 1em;
+	display: inline-block;
+}
+
 .kdna-rc-rs-trigger:focus-visible {
 	outline: 2px solid;
 	outline-offset: 2px;
@@ -87,14 +113,35 @@
 	background: transparent;
 }
 
+/*
+ * Row layout: flag / label / tick, each in a fixed grid column so the
+ * labels line up perfectly across rows even when a flag is missing
+ * (kdna-rc-rs-flag--empty holds the column open) or the tick is only
+ * on the active row.
+ */
 .kdna-rc-rs-option .kdna-rc-rs-link {
-	display: flex;
+	display: grid;
+	grid-template-columns: 22px 1fr 16px;
 	align-items: center;
-	gap: var( --kdna-rc-rs-gap );
-	padding: 8px 12px;
+	column-gap: var( --kdna-rc-rs-gap );
+	padding: 8px 14px;
 	color: inherit;
 	text-decoration: none;
 	flex: 1 1 auto;
+	min-width: 140px;
+}
+
+.kdna-rc-rs-option .kdna-rc-rs-flag--empty {
+	background: transparent;
+	border: 0;
+}
+
+.kdna-rc-rs-tick {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: inherit;
+	opacity: 0.9;
 }
 
 .kdna-rc-rs-option:focus,
