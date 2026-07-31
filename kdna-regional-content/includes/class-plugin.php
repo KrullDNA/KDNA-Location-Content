@@ -417,6 +417,9 @@ final class KDNA_RC_Plugin {
 		if ( class_exists( 'KDNA_RC_Language_Selector_Widget' ) ) {
 			$widgets_manager->register( new KDNA_RC_Language_Selector_Widget() );
 		}
+		if ( class_exists( 'KDNA_RC_Region_Selector_Widget' ) ) {
+			$widgets_manager->register( new KDNA_RC_Region_Selector_Widget() );
+		}
 
 		// Stage 12 dynamic multilingual widgets.
 		if ( class_exists( 'KDNA_RC_Dynamic_Multilingual_Field_Widget' ) ) {

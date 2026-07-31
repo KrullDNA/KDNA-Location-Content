@@ -1,0 +1,118 @@
+/*
+ * KDNA Regional Content : Region Selector default styles.
+ *
+ * Structural defaults so the widget is usable out of the box. Colours,
+ * borders, padding, typography are overridable via the Style tab.
+ */
+
+.kdna-rc-rs {
+	position: relative;
+	display: inline-block;
+	font-family: inherit;
+	--kdna-rc-rs-gap: 8px;
+	--kdna-rc-rs-offset: 4px;
+}
+
+.kdna-rc-rs-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: var( --kdna-rc-rs-gap );
+	cursor: pointer;
+	background: transparent;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	padding: 6px 12px;
+	font: inherit;
+	color: inherit;
+	line-height: 1.4;
+}
+
+.kdna-rc-rs-trigger:focus-visible {
+	outline: 2px solid;
+	outline-offset: 2px;
+}
+
+.kdna-rc-rs-flag {
+	display: inline-block;
+	width: 22px;
+	height: 16px;
+	border-radius: 2px;
+	flex: 0 0 auto;
+}
+
+.kdna-rc-rs-arrow {
+	display: inline-flex;
+	align-items: center;
+	margin-left: auto;
+	transition: transform 0.15s ease;
+}
+
+.kdna-rc-rs.is-open .kdna-rc-rs-arrow {
+	transform: rotate( 180deg );
+}
+
+.kdna-rc-rs-panel {
+	position: absolute;
+	left: 0;
+	margin: 0;
+	padding: 4px 0;
+	list-style: none;
+	background: #fff;
+	border: 1px solid rgba( 0, 0, 0, 0.12 );
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba( 0, 0, 0, 0.1 );
+	min-width: 100%;
+	z-index: 1000;
+}
+
+.kdna-rc-rs--pos-below .kdna-rc-rs-panel {
+	top: 100%;
+	margin-top: var( --kdna-rc-rs-offset );
+}
+
+.kdna-rc-rs--pos-above .kdna-rc-rs-panel {
+	bottom: 100%;
+	margin-bottom: var( --kdna-rc-rs-offset );
+}
+
+.kdna-rc-rs-panel[hidden] {
+	display: none;
+}
+
+.kdna-rc-rs-option {
+	display: flex;
+	align-items: stretch;
+	white-space: nowrap;
+	color: inherit;
+	background: transparent;
+}
+
+.kdna-rc-rs-option .kdna-rc-rs-link {
+	display: flex;
+	align-items: center;
+	gap: var( --kdna-rc-rs-gap );
+	padding: 8px 12px;
+	color: inherit;
+	text-decoration: none;
+	flex: 1 1 auto;
+}
+
+.kdna-rc-rs-option:focus,
+.kdna-rc-rs-option .kdna-rc-rs-link:focus {
+	outline: 0;
+}
+
+.kdna-rc-rs-option:focus-visible,
+.kdna-rc-rs-option .kdna-rc-rs-link:focus-visible {
+	outline: 2px solid;
+	outline-offset: -2px;
+}
+
+.kdna-rc-rs-option:hover,
+.kdna-rc-rs-option.is-active {
+	background-color: rgba( 0, 0, 0, 0.04 );
+}
+
+.kdna-rc-rs--mode-flag .kdna-rc-rs-trigger {
+	gap: 4px;
+}

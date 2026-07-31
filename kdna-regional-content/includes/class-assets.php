@@ -229,6 +229,26 @@ class KDNA_RC_Assets {
 			)
 		);
 
+		// Region Selector widget assets. Always enqueued so drop-in works
+		// with no config. Reuses the flag-icons stylesheet for the country
+		// glyphs and depends on frontend.js for the shared kdnaRC config.
+		wp_enqueue_style(
+			'kdna-rc-region-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/css/region-selector.css',
+			array( 'kdna-rc-flag-icons' ),
+			KDNA_RC_VERSION
+		);
+		wp_enqueue_script(
+			'kdna-rc-region-selector',
+			KDNA_RC_PLUGIN_URL . 'assets/js/region-selector.js',
+			array( 'kdna-rc-frontend' ),
+			KDNA_RC_VERSION,
+			array(
+				'in_footer' => false,
+				'strategy'  => 'defer',
+			)
+		);
+
 		$settings = get_option( KDNA_RC_OPTION_SETTINGS, array() );
 		$single_mode = isset( $settings['single_post_behaviour'] ) ? (string) $settings['single_post_behaviour'] : 'show';
 		$redirect    = isset( $settings['single_post_redirect_url'] ) ? (string) $settings['single_post_redirect_url'] : '';
