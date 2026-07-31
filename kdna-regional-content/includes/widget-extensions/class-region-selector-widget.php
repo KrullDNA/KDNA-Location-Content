@@ -312,6 +312,30 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 	}
 
 	/**
+	 * Derive a flag-icons code (lowercased 2-letter ISO) for a region.
+	 *
+	 * Regions don't store a flag field the way languages do — they store
+	 * a countries[] array of ISO codes because a region can be a group
+	 * (e.g. "EU" covering 27 countries). Best-effort: use the first
+	 * country's ISO code, lowercased, so single-country regions like
+	 * Australia (['AU']) render as "au" for `fi fi-au`.
+	 *
+	 * Returns '' when no ISO country is available, in which case the
+	 * flag span is skipped entirely so the row stays clean.
+	 *
+	 * @param array $region Region record.
+	 * @return string
+	 */
+	private function region_flag_code( array $region ) {
+		if ( empty( $region['countries'] ) || ! is_array( $region['countries'] ) ) {
+			return '';
+		}
+		$first = strtolower( (string) reset( $region['countries'] ) );
+		if ( 'uk' === $first ) { $first = 'gb'; }
+		return preg_match( '/^[a-z]{2}$/', $first ) ? $first : '';
+	}
+
+	/**
 	 * Resolve region list to render based on the include filter.
 	 *
 	 * @param array $settings Widget settings.
@@ -506,8 +530,10 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 				aria-expanded="false"
 				aria-controls="<?php echo esc_attr( $listbox_id ); ?>"
 				aria-label="<?php echo esc_attr__( 'Choose region', 'kdna-regional-content' ); ?>">
-				<?php if ( $current && in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && ! empty( $current['flag'] ) ) : ?>
-					<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $current['flag'] ); ?>" aria-hidden="true"></span>
+				<?php
+				$current_flag = $current ? $this->region_flag_code( $current ) : '';
+				if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && '' !== $current_flag ) : ?>
+					<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $current_flag ); ?>" aria-hidden="true"></span>
 				<?php endif; ?>
 				<?php if ( $current && in_array( $display_mode, array( 'text', 'flag_text' ), true ) ) : ?>
 					<span class="kdna-rc-rs-label"><?php echo esc_html( $current['name'] ); ?></span>
@@ -527,14 +553,15 @@ class KDNA_RC_Region_Selector_Widget extends \Elementor\Widget_Base {
 				<?php foreach ( $regions as $region ) :
 					$is_selected = $current && $region['slug'] === $current['slug'];
 					$href        = $this->build_target_url( $region['slug'] );
+					$flag_code   = $this->region_flag_code( $region );
 					?>
 					<li class="kdna-rc-rs-option<?php echo $is_selected ? ' is-active' : ''; ?>"
 						role="option"
 						aria-selected="<?php echo $is_selected ? 'true' : 'false'; ?>"
 						data-slug="<?php echo esc_attr( $region['slug'] ); ?>">
 						<a href="<?php echo esc_url( $href ); ?>" class="kdna-rc-rs-link">
-							<?php if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && ! empty( $region['flag'] ) ) : ?>
-								<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $region['flag'] ); ?>" aria-hidden="true"></span>
+							<?php if ( in_array( $display_mode, array( 'flag', 'flag_text' ), true ) && '' !== $flag_code ) : ?>
+								<span class="kdna-rc-rs-flag fi fi-<?php echo esc_attr( $flag_code ); ?>" aria-hidden="true"></span>
 							<?php endif; ?>
 							<?php if ( in_array( $display_mode, array( 'text', 'flag_text' ), true ) ) : ?>
 								<span class="kdna-rc-rs-label"><?php echo esc_html( $region['name'] ); ?></span>
