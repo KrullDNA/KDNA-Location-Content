@@ -92,6 +92,24 @@
 		} );
 	}
 
+	// Flip the panel to right-align if opening at its natural
+	// left-aligned position would overflow the viewport. Runs after
+	// unhiding so the panel actually has layout measurements. Also
+	// handles the reverse case: if right-alignment was left over from
+	// a previous open and there's now room to left-align, remove the
+	// class. Called on open and on resize while a panel is open.
+	function adjustAlignment ( root ) {
+		var panel = root.querySelector( '.kdna-rc-rs-panel' );
+		if ( ! panel ) { return; }
+		// Reset first so we measure the natural left-aligned position.
+		root.classList.remove( 'kdna-rc-rs--align-end' );
+		var rect     = panel.getBoundingClientRect();
+		var viewport = window.innerWidth || document.documentElement.clientWidth;
+		if ( rect.right > viewport - 4 ) {
+			root.classList.add( 'kdna-rc-rs--align-end' );
+		}
+	}
+
 	function openPanel ( root ) {
 		var trigger = root.querySelector( '.kdna-rc-rs-trigger' );
 		var panel   = root.querySelector( '.kdna-rc-rs-panel' );
@@ -99,6 +117,7 @@
 		root.classList.add( 'is-open' );
 		trigger.setAttribute( 'aria-expanded', 'true' );
 		panel.removeAttribute( 'hidden' );
+		adjustAlignment( root );
 	}
 
 	function closePanel ( root, focusTrigger ) {
@@ -167,6 +186,15 @@
 		document.addEventListener( 'click', function ( event ) {
 			if ( ! root.contains( event.target ) ) {
 				closePanel( root, false );
+			}
+		} );
+
+		// Re-check alignment while open on viewport size changes so a
+		// visitor rotating a phone or resizing a window doesn't end up
+		// with a panel that clips off the new edge.
+		window.addEventListener( 'resize', function () {
+			if ( root.classList.contains( 'is-open' ) ) {
+				adjustAlignment( root );
 			}
 		} );
 	}

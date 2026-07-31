@@ -88,7 +88,18 @@
 	border-radius: 4px;
 	box-shadow: 0 4px 12px rgba( 0, 0, 0, 0.1 );
 	min-width: 100%;
+	max-width: calc( 100vw - 16px );
 	z-index: 1000;
+}
+
+/*
+ * Auto-flip: when the JS detects the natural left-aligned panel would
+ * overflow the viewport (widget sits at the right edge of the header),
+ * it adds .kdna-rc-rs--align-end which right-anchors the panel instead.
+ */
+.kdna-rc-rs--align-end .kdna-rc-rs-panel {
+	left: auto;
+	right: 0;
 }
 
 .kdna-rc-rs--pos-below .kdna-rc-rs-panel {
