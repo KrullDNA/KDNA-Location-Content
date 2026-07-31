@@ -7,7 +7,7 @@
  * from the General-tab "Sitemap integration mode" radio:
  *   - extend       Augment Yoast's sitemap by adding xhtml:link rows
  *                  per <url> entry (the recommended Google pattern).
- *   - supplementary  Generate a parallel /kdna-rc-sitemap.xml that
+ *   - supplementary  Generate a parallel /regions-sitemap.xml that
  *                  lists every regional URL with its alternates.
  *   - disabled     Do nothing.
  *
@@ -102,16 +102,16 @@ class KDNA_RC_Yoast_Sitemap_Integration {
 	}
 
 	/**
-	 * Register the /kdna-rc-sitemap.xml route for the supplementary mode.
+	 * Register the /regions-sitemap.xml route for the supplementary mode.
 	 *
 	 * @return void
 	 */
 	public function register_supplementary_route() {
-		add_rewrite_rule( '^kdna-rc-sitemap\\.xml$', 'index.php?kdna_rc_sitemap=1', 'top' );
+		add_rewrite_rule( '^regions-sitemap\\.xml$', 'index.php?kdna_rc_regions_sitemap=1', 'top' );
 		add_filter(
 			'query_vars',
 			function ( $vars ) {
-				$vars[] = 'kdna_rc_sitemap';
+				$vars[] = 'kdna_rc_regions_sitemap';
 				return $vars;
 			}
 		);
@@ -124,7 +124,7 @@ class KDNA_RC_Yoast_Sitemap_Integration {
 	 * @return void
 	 */
 	public function maybe_render_supplementary() {
-		if ( ! get_query_var( 'kdna_rc_sitemap' ) ) {
+		if ( ! get_query_var( 'kdna_rc_regions_sitemap' ) ) {
 			return;
 		}
 		header( 'Content-Type: application/xml; charset=' . get_bloginfo( 'charset' ) );
@@ -180,7 +180,7 @@ class KDNA_RC_Yoast_Sitemap_Integration {
 			$links = array();
 		}
 		$links[] = array(
-			'loc'     => home_url( '/kdna-rc-sitemap.xml' ),
+			'loc'     => home_url( '/regions-sitemap.xml' ),
 			'lastmod' => gmdate( 'c' ),
 		);
 		return $links;
@@ -195,9 +195,9 @@ class KDNA_RC_Yoast_Sitemap_Integration {
 	 */
 	public function append_to_robots_txt( $output, $is_public ) {
 		if ( ! $is_public ) { return $output; }
-		$line = "Sitemap: " . esc_url_raw( home_url( '/kdna-rc-sitemap.xml' ) ) . "\n";
+		$line = "Sitemap: " . esc_url_raw( home_url( '/regions-sitemap.xml' ) ) . "\n";
 		// Avoid duplicates on repeat saves.
-		if ( false === strpos( (string) $output, 'kdna-rc-sitemap.xml' ) ) {
+		if ( false === strpos( (string) $output, 'regions-sitemap.xml' ) ) {
 			$output .= "\n" . $line;
 		}
 		return $output;
