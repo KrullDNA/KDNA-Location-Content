@@ -588,9 +588,22 @@ class KDNA_RC_Detector {
 		// because the banner depends on regions rather than languages.
 		$regions_list = array();
 		foreach ( ( new KDNA_RC_Regions() )->get_all() as $region ) {
+			// Derive a flag-icons code from the first country in the
+			// region's countries[] list (regions store ISO codes, not a
+			// dedicated flag field). Groups without a matching two-letter
+			// code get an empty flag and the UI skips the glyph.
+			$flag_hint = '';
+			if ( ! empty( $region['countries'] ) && is_array( $region['countries'] ) ) {
+				$first = strtolower( (string) reset( $region['countries'] ) );
+				if ( 'uk' === $first ) { $first = 'gb'; }
+				if ( preg_match( '/^[a-z]{2}$/', $first ) ) {
+					$flag_hint = $first;
+				}
+			}
 			$regions_list[] = array(
 				'slug' => $region['slug'],
 				'name' => $region['name'],
+				'flag' => $flag_hint,
 			);
 		}
 		$payload['regions']      = $regions_list;
